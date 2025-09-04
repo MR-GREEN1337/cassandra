@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { PlanetIcon } from '@/components/PlanetIcon';
+import Logo from '@/components/Logo';
+import Image from 'next/image';
 
 type Uniforms = {
   [key: string]: {
@@ -168,16 +169,14 @@ const DotMatrix: React.FC<DotMatrixProps> = ({
 
         void main() {
             vec2 st = fragCoord.xy;
-            ${
-              center.includes('x')
-                ? 'st.x -= abs(floor((mod(u_resolution.x, u_total_size) - u_dot_size) * 0.5));'
-                : ''
-            }
-            ${
-              center.includes('y')
-                ? 'st.y -= abs(floor((mod(u_resolution.y, u_total_size) - u_dot_size) * 0.5));'
-                : ''
-            }
+            ${center.includes('x')
+          ? 'st.x -= abs(floor((mod(u_resolution.x, u_total_size) - u_dot_size) * 0.5));'
+          : ''
+        }
+            ${center.includes('y')
+          ? 'st.y -= abs(floor((mod(u_resolution.y, u_total_size) - u_dot_size) * 0.5));'
+          : ''
+        }
 
             float opacity = step(0.0, st.x);
             opacity *= step(0.0, st.y);
@@ -445,19 +444,16 @@ const Dialog: React.FC<DialogProps> = ({ isOpen, onClose, children }) => {
 // Dialog Content Components
 const AboutContent = () => (
   <div className="space-y-6 text-center">
-    <h2 className="text-3xl font-bold text-white">About Our Journey</h2>
+    <h2 className="text-3xl font-bold text-white">About Cassandra</h2>
     <div className="space-y-4 text-white/70">
       <p>
-        We are explorers of the digital frontier, seeking to unravel the
-        mysteries of multi-agent systems.
+        The vast majority of startups fail, often due to preventable mistakes. We believe the lessons from these failures are the most valuable resource for new founders.
       </p>
       <p>
-        Our mission is to create intelligent systems that can work together,
-        learn from each other, and push the boundaries of what's possible.
+        Cassandra is an AI co-pilot trained on a "Corpus of Failure"—a knowledge base of over 1,000 detailed startup post-mortems. It analyzes your idea to identify potential pitfalls before they happen.
       </p>
       <p>
-        Join us as we venture into the unknown, where thought meets code, and
-        intelligence emerges from silence.
+        Our mission is to equip innovators with data-driven foresight, turning the graveyard of failed startups into a roadmap for success.
       </p>
     </div>
   </div>
@@ -466,37 +462,34 @@ const AboutContent = () => (
 const JourneyContent = () => (
   <div className="space-y-6">
     <h2 className="text-3xl font-bold text-white text-center">
-      The Journey Ahead
+      How It Works
     </h2>
     <div className="space-y-6">
       <div className="space-y-2">
         <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-          <span className="w-2 h-2 bg-white rounded-full"></span>
-          Phase 1: Discovery
+          <span className="w-2 h-2 bg-amber-400 rounded-full"></span>
+          Step 1: Deconstruction & Analysis
         </h3>
         <p className="text-white/70 ml-4">
-          Uncover the potential of multi-agent systems and explore the
-          foundations of distributed intelligence.
+          Our agentic system deconstructs your pitch into core components—market, product, team, timing—and queries our knowledge base for relevant failure patterns.
         </p>
       </div>
       <div className="space-y-2">
         <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-          <span className="w-2 h-2 bg-white/60 rounded-full"></span>
-          Phase 2: Evolution
+          <span className="w-2 h-2 bg-amber-400/60 rounded-full"></span>
+          Step 2: Risk Identification
         </h3>
         <p className="text-white/70 ml-4">
-          Watch as agents learn, adapt, and evolve together, creating emergent
-          behaviors and collective intelligence.
+          The AI identifies and scores the most critical risks your venture faces, from "No Market Need" to "Poor Monetization," based on historical data.
         </p>
       </div>
       <div className="space-y-2">
         <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-          <span className="w-2 h-2 bg-white/30 rounded-full"></span>
-          Phase 3: Transcendence
+          <span className="w-2 h-2 bg-amber-400/30 rounded-full"></span>
+          Step 3: Actionable Synthesis
         </h3>
         <p className="text-white/70 ml-4">
-          Experience the emergence of new forms of intelligence as our agents
-          transcend their original programming.
+          Receive an interactive report with risk gauges, mitigation strategies, and case studies, allowing you to de-risk your plan and engineer for success.
         </p>
       </div>
     </div>
@@ -504,40 +497,25 @@ const JourneyContent = () => (
 );
 
 const ContactContent = () => {
-  const handleLinkedInClick = () => {
-    window.open('https://www.linkedin.com/in/islam-hachimi/', '_blank');
-  };
-
   return (
     <div className="space-y-6">
       <h2 className="text-3xl font-bold text-white text-center">
         Get in Touch
       </h2>
-      <img src="face.jpeg" className="w-80 h-80 mx-auto" />
       <p className="text-white/70 text-center">
-        I'm Islam HACHIMI, an AI explorer of the digital frontier, seeking to
-        unravel the mysteries of multi-agent systems, and eating pizza along the
-        way. Let's connect and explore the possibilities together.
+        Cassandra is a project born from a passion for helping founders succeed. We are constantly evolving and would love to hear your feedback, questions, or ideas.
       </p>
       <div className="pt-4">
-        <button
-          onClick={handleLinkedInClick}
-          className="w-full rounded-full bg-white text-black font-medium py-3 hover:bg-white/90 transition-colors flex items-center justify-center gap-3"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
+        <a href="mailto:contact@example.com">
+          <button
+            className="w-full rounded-full bg-white text-black font-medium py-3 hover:bg-white/90 transition-colors flex items-center justify-center gap-3"
           >
-            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-          </svg>
-          Connect on LinkedIn
-        </button>
+            Contact The Team
+          </button>
+        </a>
       </div>
       <p className="text-xs text-white/40 text-center pt-4">
-        Let's connect on LinkedIn for professional networking and collaboration
-        opportunities.
+        Let's connect and explore how we can build more resilient ventures together.
       </p>
     </div>
   );
@@ -573,21 +551,13 @@ function MiniNavbar() {
     };
   }, [isOpen]);
 
-  const logoElement = <PlanetIcon />;
+  const logoElement = <Logo />;
 
   const navLinksData = [
     { label: 'About', href: '#about' },
-    { label: 'Journey', href: '#journey' },
+    { label: 'How It Works', href: '#journey' },
     { label: 'Contact', href: '#contact' },
   ];
-
-  const demoButtonElement = (
-    <a href="https://www.youtube.com/watch?v=LXr5qbhwImc">
-      <button className="px-4 py-2 sm:px-3 text-xs sm:text-sm border border-[#333] bg-[rgba(31,31,31,0.62)] text-gray-300 rounded-full hover:border-white/50 hover:text-white transition-colors duration-200 w-full sm:w-auto">
-        Demo
-      </button>
-    </a>
-  );
 
   const startButtonElement = (
     <div className="relative group w-full sm:w-auto">
@@ -600,13 +570,17 @@ function MiniNavbar() {
                      group-hover:opacity-60 group-hover:blur-xl group-hover:-m-3"
       ></div>
       <button className="relative z-10 px-4 py-2 sm:px-3 text-xs sm:text-sm font-semibold text-black bg-gradient-to-br from-gray-100 to-gray-300 rounded-full hover:from-gray-200 hover:to-gray-400 transition-all duration-200 w-full sm:w-auto">
-        Start
+        Start Analysis
       </button>
     </div>
   );
 
   const handleNavClick = (label: string) => {
-    setActiveDialog(label.toLowerCase());
+    if (label === "How It Works") {
+      setActiveDialog("journey");
+    } else {
+      setActiveDialog(label.toLowerCase());
+    }
   };
 
   const getDialogContent = () => {
@@ -649,8 +623,7 @@ function MiniNavbar() {
           </nav>
 
           <div className="hidden sm:flex items-center gap-2 sm:gap-3">
-            {demoButtonElement}
-            <a href="/chat">{startButtonElement}</a>
+            <a href="/dashboard">{startButtonElement}</a>
           </div>
 
           <button
@@ -713,8 +686,7 @@ function MiniNavbar() {
             ))}
           </nav>
           <div className="flex flex-col items-center space-y-4 mt-4 w-full">
-            {demoButtonElement}
-            <a href="/chat">{startButtonElement}</a>
+            <a href="/dashboard">{startButtonElement}</a>
           </div>
         </div>
       </header>
@@ -727,13 +699,13 @@ function MiniNavbar() {
 }
 
 const LandingPage = ({ className }: PageProps) => {
-  const [businessQuery, setBusinessQuery] = useState('');
+  const [pitch, setPitch] = useState('');
 
-  const handleBusinessQuerySubmit = (e: React.FormEvent) => {
+  const handlePitchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (businessQuery) {
-      const encodedQuery = encodeURIComponent(businessQuery);
-      window.location.href = `/chat?query=${encodedQuery}`;
+    if (pitch) {
+      const encodedPitch = encodeURIComponent(pitch);
+      window.location.href = `/dashboard?pitch=${encodedPitch}`;
     }
   };
 
@@ -750,10 +722,10 @@ const LandingPage = ({ className }: PageProps) => {
             animationSpeed={3}
             containerClassName="bg-black"
             colors={[
-              [255, 255, 255],
-              [255, 255, 255],
+              [251, 191, 36], // Amber-400
+              [251, 191, 36], // Amber-400
             ]}
-            dotSize={6}
+            dotSize={2}
             reverse={false}
           />
         </div>
@@ -769,31 +741,31 @@ const LandingPage = ({ className }: PageProps) => {
 
         {/* Main content container */}
         <div className="flex flex-1 flex-col justify-center items-center px-4">
-          <div className="w-full max-w-sm">
+          <div className="w-full max-w-2xl">
             <motion.div
-              key="business-query-step"
+              key="pitch-query-step"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, ease: 'easeOut' }}
               className="space-y-6 text-center"
             >
               <div className="space-y-3">
-                <h1 className="text-[2.9rem] font-bold leading-[1.1] tracking-tight text-white">
-                  agent cosm
+                <h1 className="text-[2.9rem] font-light leading-[1.1] tracking-tight text-white">
+                  Forecast Failure. Engineer Success.
                 </h1>
-                <h1 className="text-[1.2rem] text-white/70 font-light">
-                  Discover Your Next Market -{'>'} Launch Your Business.
-                </h1>
+                <h2 className="text-[1rem] text-white/70 font-light">
+                  Analyze your venture against a knowledge base of 1,000+ startup failures.
+                </h2>
               </div>
 
               <div className="space-y-4">
-                <form onSubmit={handleBusinessQuerySubmit}>
+                <form onSubmit={handlePitchSubmit}>
                   <div className="relative">
                     <input
                       type="text"
-                      placeholder="What business are you curious about?"
-                      value={businessQuery}
-                      onChange={(e) => setBusinessQuery(e.target.value)}
+                      placeholder="Enter your pitch, business plan, or new feature idea..."
+                      value={pitch}
+                      onChange={(e) => setPitch(e.target.value)}
                       className="w-full backdrop-blur-[1px] text-white border-1 border-white/10 rounded-full py-3 px-4 pr-12 focus:outline-none focus:border focus:border-white/30 text-center"
                       required
                     />
@@ -815,43 +787,72 @@ const LandingPage = ({ className }: PageProps) => {
               </div>
 
               <p className="text-xs text-white/40 pt-10">
-                Let AI help you find unfulfilled needs and instantly scaffold
-                and validate a business concept.
+                De-risk your idea with an AI co-pilot that has studied the startup graveyard.
               </p>
             </motion.div>
           </div>
         </div>
 
-        {/* Footer */}
         <footer className="relative z-10 py-6 px-6">
-          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0">
-            <motion.a
-              href="https://googlecloudmultiagents.devpost.com/?ref_feature=challenge&ref_medium=your-open-hackathons&ref_content=Submissions+open"
-              target="_blank"
-              rel="noopener noreferrer"
+          <div className="max-w-7xl mx-auto flex flex-col items-center space-y-8">
+            <motion.div
               className="text-white/50 hover:text-white transition-colors text-sm flex items-center gap-2"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 1 }}
             >
               <span>
-                Submission for Google Cloud's Agent Development Kit Hackathon
+                A Hackathon Demo: De-risk Your Venture
               </span>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                />
-              </svg>
-            </motion.a>
+            </motion.div>
+
+            <motion.div
+              className="flex w-full flex-col items-center gap-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.2 }}
+            >
+              <span className="text-sm text-white/40">Proudly supported by our hackathon partners</span>
+              <div className="flex items-center justify-center gap-x-10 md:gap-x-12">
+                <a href="https://moonshot.ai/" target="_blank" rel="noopener noreferrer" title="Kimi AI">
+                  <Image
+                    src="/kimi.png"
+                    alt="Kimi AI Logo"
+                    width={80}
+                    height={32}
+                    className="h-8 w-auto transition-all duration-300 grayscale hover:grayscale-0 opacity-60 hover:opacity-100"
+                  />
+                </a>
+                <a href="https://dify.ai/" target="_blank" rel="noopener noreferrer" title="Dify.ai">
+                  <Image
+                    src="/dify.png"
+                    alt="Dify.ai Logo"
+                    width={70}
+                    height={32}
+                    className="h-8 bg-white w-auto transition-all duration-300 grayscale hover:grayscale-0 opacity-60 hover:opacity-100"
+                  />
+                </a>
+                <a href="https://www.pingcap.com/tidb/" target="_blank" rel="noopener noreferrer" title="TiDB">
+                  <Image
+                    src="/tidb-logo.svg"
+                    alt="TiDB Logo"
+                    width={90}
+                    height={32}
+                    className="h-8 w-auto transition-all duration-300 grayscale hover:grayscale-0 opacity-60 hover:opacity-100 dark:invert"
+                  />
+                </a>
+                <a href="https://aws.amazon.com/" target="_blank" rel="noopener noreferrer" title="AWS">
+                  <Image
+                    src="/aws-logo.svg"
+                    alt="AWS Logo"
+                    width={50}
+                    height={32}
+                    className="h-8 w-auto transition-all duration-300 grayscale hover:grayscale-0 opacity-60 hover:opacity-100 dark:invert"
+                  />
+                </a>
+              </div>
+            </motion.div>
+
           </div>
         </footer>
       </div>

@@ -15,6 +15,7 @@ export function useAudioInput(onTranscript: (transcript: string) => void) {
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
+    //@ts-ignore
     const SpeechRecognition = (window as CustomWindow).SpeechRecognition || (window as CustomWindow).webkitSpeechRecognition;
     
     if (!SpeechRecognition) {

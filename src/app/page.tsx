@@ -551,7 +551,7 @@ function MiniNavbar() {
     };
   }, [isOpen]);
 
-  const logoElement = <Logo />;
+  const logoElement = <Logo className="!text-white"/>;
 
   const navLinksData = [
     { label: 'About', href: '#about' },

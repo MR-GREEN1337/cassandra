@@ -12,11 +12,11 @@ import {
   ChevronsUpDown, LayoutGrid, BookUser, CreditCard, Settings, LifeBuoy, LogOut,
   HelpCircle, MessageSquare, PanelLeftClose, PanelLeftOpen, Sun, Moon, FolderKanban,
   Loader2, Plus, Trash2,
-  BrainCircuit
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardProvider, useDashboard, Session } from "@/components/DashboardContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import Logo from "@/components/Logo";
 
 // A small component to render the layout content, so it can access the context
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
@@ -55,10 +55,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         )}>
            <div className={cn("flex h-14 items-center border-b px-4")}>
             {/* Placeholder for Logo */}
-            <Link href="/" className="flex items-center gap-2 font-semibold">
-              <BrainCircuit className="h-6 w-6 text-amber-500" />
-              <span className={cn(isCollapsed && "hidden")}>Cassandra</span>
-            </Link>
+            <Logo hideText={isCollapsed} />
            </div>
            <div className="p-2">
              <Button onClick={newSession} className="w-full" variant="outline" size={isCollapsed ? "icon" : "default"}>

@@ -37,7 +37,7 @@ Key Features:
 │   └── schema.prisma
 ├── prompt_context.txt
 ├── public
-│   ├── aws-logo.svg
+│   ├── aws.svg
 │   ├── dify.png
 │   ├── kimi.png
 │   ├── sheet0.png
@@ -48,6 +48,7 @@ Key Features:
 │   │   ├── api
 │   │   │   └── analyze
 │   │   │       └── route.ts
+│   │   ├── Cassandra Logo - Favicon Generator.html
 │   │   ├── dashboard
 │   │   │   ├── layout.tsx
 │   │   │   └── page.tsx
@@ -56,6 +57,7 @@ Key Features:
 │   │   ├── layout.tsx
 │   │   └── page.tsx
 │   ├── components
+│   │   ├── CassandraLogo.tsx
 │   │   ├── DashboardContext.tsx
 │   │   ├── KimiLogo.tsx
 │   │   ├── Logo.tsx
@@ -106,7 +108,7 @@ Key Features:
 │       └── utils.ts
 └── tsconfig.json
 
-16 directories, 70 files
+16 directories, 72 files
 
 
 
@@ -8075,11 +8077,11 @@ import {
   ChevronsUpDown, LayoutGrid, BookUser, CreditCard, Settings, LifeBuoy, LogOut,
   HelpCircle, MessageSquare, PanelLeftClose, PanelLeftOpen, Sun, Moon, FolderKanban,
   Loader2, Plus, Trash2,
-  BrainCircuit
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardProvider, useDashboard, Session } from "@/components/DashboardContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import Logo from "@/components/Logo";
 
 // A small component to render the layout content, so it can access the context
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
@@ -8118,10 +8120,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         )}>
            <div className={cn("flex h-14 items-center border-b px-4")}>
             {/* Placeholder for Logo */}
-            <Link href="/" className="flex items-center gap-2 font-semibold">
-              <BrainCircuit className="h-6 w-6 text-amber-500" />
-              <span className={cn(isCollapsed && "hidden")}>Cassandra</span>
-            </Link>
+            <Logo hideText={isCollapsed} />
            </div>
            <div className="p-2">
              <Button onClick={newSession} className="w-full" variant="outline" size={isCollapsed ? "icon" : "default"}>
@@ -9168,7 +9167,7 @@ function MiniNavbar() {
     };
   }, [isOpen]);
 
-  const logoElement = <Logo />;
+  const logoElement = <Logo className="!text-white"/>;
 
   const navLinksData = [
     { label: 'About', href: '#about' },
@@ -10499,6 +10498,35 @@ const PitchNode: React.FC<NodeProps<PitchNodeData>> = (node) => {
 };
 
 export default PitchNode;
+// --- FILE: ./src/components/CassandraLogo.tsx ---
+
+// src/components/CassandraLogo.tsx
+import React from 'react';
+import { cn } from '@/lib/utils';
+
+interface CassandraLogoProps extends React.SVGProps<SVGSVGElement> {
+  className?: string;
+}
+
+export const CassandraLogo: React.FC<CassandraLogoProps> = ({ className, ...props }) => {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      className={cn('h-6 w-6', className)}
+      {...props}
+    >
+      <g fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {/* The outer 'C' shape representing foresight and analysis */}
+        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        {/* The inner 'spark of insight' */}
+        <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      </g>
+    </svg>
+  );
+};
+
+export default CassandraLogo;
 // --- FILE: ./src/components/KimiLogo.tsx ---
 
 // src/components/KimiLogo.tsx
@@ -10588,6 +10616,7 @@ import Link from "next/link";
 import { Playfair_Display } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
+import { CassandraLogo } from "./CassandraLogo"; // Import the SVG logo
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -10596,28 +10625,34 @@ const playfair = Playfair_Display({
 
 interface LogoProps {
   className?: string;
+  hideText?: boolean; // Prop to control text visibility
 }
 
-export const Logo: React.FC<LogoProps> = ({ className }) => {
-  const pathname = usePathname();
-
+export const Logo: React.FC<LogoProps> = ({ className, hideText = false }) => {
   return (
     <Link
-      href={pathname.startsWith("/dashboard") ? "/dashboard" : "/"}
+      href={"/"}
       className={cn(
         "group flex items-center gap-2.5 transition-opacity duration-300 hover:opacity-80",
         className,
       )}
-      aria-label="Alloy Homepage"
+      aria-label="Cassandra Homepage"
     >
+      <CassandraLogo className="h-6 w-6 text-amber-500 shrink-0" />
+
+      <div className={cn("flex flex-col", hideText && "hidden")}>
         <span
           className={cn(
-            "text-xl font-bold tracking-tighter text-white",
-            playfair.className, className
+            "text-xl font-bold tracking-tighter leading-none",
+            playfair.className
           )}
         >
           Cassandra
         </span>
+        <span className="text-xs text-muted-foreground -mt-0.7 ml-1 text-xs">
+          Foresight for Founders
+        </span>
+      </div>
     </Link>
   );
 };
@@ -10632,23 +10667,6 @@ import { Node, Edge } from 'reactflow';
 import { useDebounce } from '@/hooks/use-debounce';
 
 const LOCAL_STORAGE_KEY = 'cassandra-sessions-v2';
-
-// --- MOCK DATA FOR TESTING URL RENDERING ---
-const MOCK_PITCH = "A new social media app for pet owners that uses AI to suggest playdates.";
-
-const MOCK_RESPONSE = `### Primary Risks Analysis
-
-Based on similar ventures, here are the key risks to consider:
-
-*   **Market Saturation & User Apathy:** The social media space is incredibly crowded. This was a major factor in the failure of services like [Color](https://en.wikipedia.org/wiki/Color_Labs), which struggled to gain traction despite significant funding. You must have a compelling, unique value proposition to overcome user inertia.
-
-*   **Monetization Challenges:** How will you generate revenue? Many startups in the "deadpool" covered by [TechCrunch](https://techcrunch.com/category/deadpool/) failed because they couldn't find a sustainable business model after an initial period of user growth. Avoid the "grow now, monetize later" trap without a clear plan.
-
-*   **Retention vs. Novelty:** While the idea is novel, long-term engagement can be difficult. As advised in many essays from [Y Combinator](https://www.ycombinator.com/library), focusing on a core, high-value utility beyond just "social" features is crucial for retention. What keeps users coming back after the novelty wears off?
-
-Focusing on a hyper-niche community (e.g., owners of a specific dog breed) could be a strong mitigation strategy.`;
-// --- END MOCK DATA ---
-
 
 export interface Session { id: string; name: string; createdAt: number; nodes: Node[]; edges: Edge[]; }
 
@@ -10702,26 +10720,15 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
       setEdges(sessionToLoad.edges);
       setActiveSessionId(recentId);
     } else {
-      // --- MODIFIED: Use mock data for the very first session ---
       const id = `s_${Date.now()}`;
-      const initialNodes: Node[] = [{ 
-        id: '1', 
-        type: 'pitchNode', 
-        position: { x: 250, y: 100 }, 
-        data: { 
-          pitch: MOCK_PITCH, 
-          response: MOCK_RESPONSE, 
-          isLoading: false 
-        }, 
-      }];
-      const newSessionData: Session = { id, name: 'Sample Analysis', createdAt: Date.now(), nodes: initialNodes, edges: [] };
+      const initialNodes: Node[] = [{ id: '1', type: 'pitchNode', position: { x: 250, y: 100 }, data: { pitch: '', response: null, isLoading: false }, }];
+      const newSessionData: Session = { id, name: 'New Session', createdAt: Date.now(), nodes: initialNodes, edges: [] };
       const updatedSessions = { ...validSessions, [id]: newSessionData };
       setNodes(newSessionData.nodes);
       setEdges(newSessionData.edges);
       setActiveSessionId(id);
       setSessions(updatedSessions);
       return;
-      // --- END MODIFICATION ---
     }
     setSessions(validSessions);
   }, []);
@@ -10757,21 +10764,24 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
       console.error(`Attempted to load a session that does not exist: ${id}`);
     }
   }, [sessions]);
-  
+
+  // --- FIX START ---
   const newSession = useCallback(() => {
     const id = `s_${Date.now()}`;
     const initialNodes: Node[] = [{ id: '1', type: 'pitchNode', position: { x: 250, y: 100 }, data: { pitch: '', response: null, isLoading: false }, }];
     const newSessionData: Session = { id, name: 'New Session', createdAt: Date.now(), nodes: initialNodes, edges: [] };
     
+    // Directly set the UI state to the new session's data
     setNodes(newSessionData.nodes);
     setEdges(newSessionData.edges);
     setActiveSessionId(id);
     
+    // Then, update the sessions map. This avoids the race condition.
     setSessions(prevSessions => ({
       ...prevSessions,
       [id]: newSessionData
     }));
-  }, []);
+  }, []); // Dependencies are no longer needed
   
   const deleteSession = useCallback((id: string) => {
     setSessions(prevSessions => {
@@ -10782,10 +10792,12 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
         const nextSessionToLoad = Object.values(remainingSessions).sort((a, b) => b.createdAt - a.createdAt)[0];
 
         if (nextSessionToLoad) {
+          // If another session exists, load it directly
           setNodes(nextSessionToLoad.nodes);
           setEdges(nextSessionToLoad.edges);
           setActiveSessionId(nextSessionToLoad.id);
         } else {
+          // If no sessions are left, create a new one from scratch
           const newId = `s_${Date.now()}`;
           const initialNodes: Node[] = [{ id: '1', type: 'pitchNode', position: { x: 250, y: 100 }, data: { pitch: '', response: null, isLoading: false }, }];
           const newSessionData: Session = { id: newId, name: 'New Session', createdAt: Date.now(), nodes: initialNodes, edges: [] };
@@ -10794,12 +10806,13 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
           setEdges(newSessionData.edges);
           setActiveSessionId(newSessionData.id);
           
-          return { [newId]: newSessionData };
+          return { [newId]: newSessionData }; // Return the new session map
         }
       }
       return remainingSessions;
     });
   }, [activeSessionId]);
+  // --- FIX END ---
   
   const value = { sessions, activeSessionId, nodes, setNodes, edges, setEdges, loadSession, newSession, deleteSession };
 
@@ -10934,48 +10947,6 @@ import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
-}
-
-// MOCK STREAMING FUNCTION
-export async function streamResponse(
-  prompt: string,
-  onChunk: (chunk: string) => void
-) {
-  const response = `This is a simulated streamed analysis for: "${prompt}". Key risks include market saturation and scaling challenges. A strong mitigation would be to target a hyper-niche audience first. The competitive landscape is fierce, but there's a gap in the premium market. Consider a subscription model for predictable revenue. This is a very interesting idea with great potential if executed correctly. Good luck!`;
-  
-  const words = response.split(' ');
-  for (let i = 0; i < words.length; i++) {
-    await new Promise((resolve) => setTimeout(resolve, 50)); // Simulate network delay
-    onChunk(words[i] + ' ');
-  }
-}
-
-
-// Helper to convert any valid CSS color to an RGBA object
-export function getRGBA(color: string): { r: number; g: number; b: number; a: number } | null {
-  if (typeof window === 'undefined') return null; // Avoid server-side errors
-  const tempDiv = document.createElement('div');
-  tempDiv.style.color = color;
-  document.body.appendChild(tempDiv);
-  const computedColor = window.getComputedStyle(tempDiv).color;
-  document.body.removeChild(tempDiv);
-  
-  const match = computedColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-  if (match) {
-    return {
-      r: parseInt(match[1]),
-      g: parseInt(match[2]),
-      b: parseInt(match[3]),
-      a: match[4] ? parseFloat(match[4]) : 1,
-    };
-  }
-  return null; // Should not happen with valid CSS colors
-}
-
-// Helper to apply opacity to a pre-calculated RGBA color object
-export function colorWithOpacity(rgba: { r: number; g: number; b: number; a: number } | null, opacity: number): string {
-  if (!rgba) return '';
-  return `rgba(${rgba.r}, ${rgba.g}, ${rgba.b}, ${rgba.a * opacity})`;
 }
 // --- FILE: ./src/lib/embedding.ts ---
 

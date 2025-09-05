@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
     // Agent Step 1: Handle file upload if it exists
     if (file) {
       try {
+        //@ts-ignore
         const fileObject = await kimi.files.create({ file, purpose: 'file-extract' });
         const fileContent = await (await kimi.files.content(fileObject.id)).text();
         if (fileContent) {

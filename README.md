@@ -1,6 +1,6 @@
 # Cassandra - The Failure Prophet
 
-[![Hackathon](https://img.shields.io/badge/TiDB%20AgentX%20Hackathon-2025-blueviolet)]([YOUR_DEVPOST_URL])
+[![Hackathon](https://img.shields.io/badge/TiDB%20AgentX%20Hackathon-2025-blueviolet)](https://tidb-2025-hackathon.devpost.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![X (Twitter)](https://img.shields.io/twitter/follow/mr_green1337?style=social)](https://twitter.com/mr_green1337)
 

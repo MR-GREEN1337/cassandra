@@ -7,6 +7,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import Logo from '@/components/Logo';
 import Image from 'next/image';
+import Link from 'next/link';
 
 type Uniforms = {
   [key: string]: {
@@ -794,67 +795,70 @@ const LandingPage = ({ className }: PageProps) => {
         </div>
 
         <footer className="relative z-10 py-6 px-6">
-          <div className="max-w-7xl mx-auto flex flex-col items-center space-y-8">
-            <motion.div
-              className="text-white/50 hover:text-white transition-colors text-sm flex items-center gap-2"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1 }}
-            >
-              <span>
-                A Hackathon Demo: De-risk Your Venture
-              </span>
-            </motion.div>
-
-            <motion.div
-              className="flex w-full flex-col items-center gap-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.2 }}
-            >
-              <span className="text-sm text-white/40">Proudly supported by our hackathon partners</span>
-              <div className="flex items-center justify-center gap-x-10 md:gap-x-12">
-                <a href="https://moonshot.ai/" target="_blank" rel="noopener noreferrer" title="Kimi AI">
-                  <Image
-                    src="/kimi.png"
-                    alt="Kimi AI Logo"
-                    width={80}
-                    height={32}
-                    className="h-8 w-auto transition-all duration-300 grayscale hover:grayscale-0 opacity-60 hover:opacity-100"
-                  />
-                </a>
-                <a href="https://dify.ai/" target="_blank" rel="noopener noreferrer" title="Dify.ai">
-                  <Image
-                    src="/dify.png"
-                    alt="Dify.ai Logo"
-                    width={70}
-                    height={32}
-                    className="h-8 bg-white w-auto transition-all duration-300 grayscale hover:grayscale-0 opacity-60 hover:opacity-100"
-                  />
-                </a>
-                <a href="https://www.pingcap.com/tidb/" target="_blank" rel="noopener noreferrer" title="TiDB">
-                  <Image
-                    src="/tidb-logo.svg"
-                    alt="TiDB Logo"
-                    width={90}
-                    height={32}
-                    className="h-8 w-auto transition-all duration-300 grayscale hover:grayscale-0 opacity-60 hover:opacity-100 dark:invert"
-                  />
-                </a>
-                <a href="https://aws.amazon.com/" target="_blank" rel="noopener noreferrer" title="AWS">
-                  <Image
-                    src="/aws-logo.svg"
-                    alt="AWS Logo"
-                    width={50}
-                    height={32}
-                    className="h-8 w-auto transition-all duration-300 grayscale hover:grayscale-0 opacity-60 hover:opacity-100 dark:invert"
-                  />
-                </a>
-              </div>
-            </motion.div>
-
+  <div className="max-w-7xl mx-auto flex flex-col items-center space-y-8">
+    <motion.div
+      className="flex w-full flex-col items-center gap-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: 1.2 }}
+    >
+      <Link href="https://tidb-2025-hackathon.devpost.com/." target="_blank" rel="noopener noreferrer">
+      <span className="text-sm text-white/40 hover:text-white transition-colors">Proudly supported by our hackathon partners</span>
+      </Link>
+      <div className="flex items-center justify-center gap-x-10 md:gap-x-12">
+        <a href="https://moonshot.ai/" target="_blank" rel="noopener noreferrer" title="Kimi AI" className="transition-all duration-300 grayscale hover:grayscale-0 opacity-60 hover:opacity-100">
+          <Image
+            src="/kimi.png"
+            alt="Kimi AI Logo"
+            width={80}
+            height={32}
+            className="h-8 w-auto"
+          />
+        </a>
+        <a href="https://dify.ai/" target="_blank" rel="noopener noreferrer" title="Dify.ai" className="transition-all duration-300 grayscale hover:grayscale-0 opacity-60 hover:opacity-100">
+          <div className="bg-white rounded-md p-1 flex items-center justify-center">
+            <Image
+              src="/dify.png"
+              alt="Dify.ai Logo"
+              width={53}
+              height={24}
+              className="h-6 w-auto"
+            />
           </div>
-        </footer>
+        </a>
+        <a href="https://www.pingcap.com/tidb/" target="_blank" rel="noopener noreferrer" title="TiDB" className="transition-all duration-300 grayscale hover:grayscale-0 opacity-60 hover:opacity-100">
+          {/* --- CHANGE IS HERE --- */}
+          <Image
+            src="/tidb-logo.svg"
+            alt="TiDB Logo"
+            width={90}
+            height={32}
+            className="h-8 w-auto [filter:drop-shadow(0_0_3px_rgba(255,255,255,0.7))]"
+          />
+        </a>
+        <a href="https://aws.amazon.com/" target="_blank" rel="noopener noreferrer" title="AWS" className="transition-all duration-300 grayscale hover:grayscale-0 opacity-60 hover:opacity-100">
+          <Image
+            src="/aws.png"
+            alt="AWS Logo"
+            width={50}
+            height={32}
+            className="h-8 w-auto invert"
+          />
+        </a>
+
+        <a href="https://sheet0.org/" target="_blank" rel="noopener noreferrer" title="Sheet0" className="transition-all duration-300 grayscale hover:grayscale-0 opacity-60 hover:opacity-100">
+          <Image
+            src="/sheet0.png"
+            alt="Sheet0 Logo"
+            width={50}
+            height={32}
+            className="h-8 w-auto invert"
+          />
+        </a>
+      </div>
+    </motion.div>
+  </div>
+</footer>
       </div>
     </div>
   );

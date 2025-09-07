@@ -1,4 +1,3 @@
-// src/app/api/analyze/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import prisma from '@/lib/prisma';
@@ -23,12 +22,24 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const pitch = formData.get('pitch') as string;
     const file = formData.get('file') as File | null;
+    const parentPitch = formData.get('parentPitch') as string | null;
+    const parentAnalysis = formData.get('parentAnalysis') as string | null;
 
     if (!pitch && !file) {
       return new NextResponse(JSON.stringify({ error: 'Pitch or file is required' }), { status: 400 });
     }
 
     const contextSections: string[] = [];
+
+    // Agent Step 0: Handle conversational context if it exists
+    if (parentPitch) {
+      let parentContext = `--- Previous Context ---\nPrevious Pitch: "${parentPitch}"`;
+      if (parentAnalysis) {
+        parentContext += `\n\nPrevious Analysis:\n${parentAnalysis}`;
+      }
+      contextSections.push(parentContext);
+    }
+
 
     // Agent Step 1: Handle file upload if it exists
     if (file) {
@@ -70,15 +81,17 @@ export async function POST(req: NextRequest) {
     const systemPrompt = `You are Cassandra, an AI co-pilot for startup founders. Your goal is to identify potential risks by comparing a user's pitch to a database of failed startups and any provided documents. You are critical, insightful, and constructive. Structure your entire response using Markdown. Use headings, bold text, and bullet points.`;
     
     // Update the user prompt to explicitly request linked citations
-    const userPrompt = `
-      Here is my startup pitch:
+    const userPrompt = `Here is my startup pitch${parentPitch ? " (as a follow-up to our previous discussion)" : ""}:
       "${pitch}"
 
       Analyze my pitch based on the following context.
       
       ${fullContext}
       
-      Based on ALL the context provided, what are the primary risks my venture faces? Provide a concise, critical analysis and suggest potential mitigation strategies.
+      ${parentPitch 
+        ? "Your analysis should consider our previous conversation and focus on how this new information changes the risk profile or answers the follow-up query. Be concise."
+        : "Based on ALL the context provided, what are the primary risks my venture faces? Provide a concise, critical analysis and suggest potential mitigation strategies."
+      }
       **IMPORTANT**: When you reference a specific case study from the "Relevant Case Studies" section, you MUST cite it as a Markdown link using its provided Source URL. For example: "Similar to the issues faced by [Webvan](https://www.failory.com/cemetery/webvan), you might struggle with logistics."
     `;
 

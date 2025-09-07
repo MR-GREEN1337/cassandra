@@ -8076,7 +8076,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   ChevronsUpDown, LayoutGrid, BookUser, CreditCard, Settings, LifeBuoy, LogOut,
   HelpCircle, MessageSquare, PanelLeftClose, PanelLeftOpen, Sun, Moon, FolderKanban,
-  Loader2, Plus, Trash2,
+  Loader2, Plus, Trash2, Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardProvider, useDashboard, Session } from "@/components/DashboardContext";
@@ -8088,17 +8088,31 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { setTheme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(true);
   
-  // Get all session logic from our new context
   const { sessions, activeSessionId, loadSession, newSession, deleteSession } = useDashboard();
 
-  // Group sessions by date for the sidebar
+  const handleExport = () => {
+    if (Object.keys(sessions).length === 0) {
+        alert("No sessions to export.");
+        return;
+    }
+    const dataStr = JSON.stringify(sessions, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'cassandra-sessions.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const sessionGroups = useMemo(() => {
     const groups: { [key: string]: Session[] } = { Today: [], Yesterday: [], "Previous 7 Days": [], "Older": [] };
     const today = new Date(); const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1); const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
-    // THE FIX: Add .filter(Boolean) to safely remove any null or undefined entries
     Object.values(sessions)
-      .filter(Boolean) // <-- THIS LINE PREVENTS THE CRASH
+      .filter(Boolean)
       .sort((a, b) => b.createdAt - a.createdAt)
       .forEach(session => {
         const sessionDate = new Date(session.createdAt);
@@ -8119,7 +8133,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           isCollapsed ? "w-[56px]" : "w-[240px]"
         )}>
            <div className={cn("flex h-14 items-center border-b px-4")}>
-            {/* Placeholder for Logo */}
             <Logo hideText={isCollapsed} />
            </div>
            <div className="p-2">
@@ -8145,7 +8158,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                             )}
                           >
                             <MessageSquare className="h-4 w-4 shrink-0" />
-                            <span className={cn("truncate", isCollapsed && "hidden")}>{session.name}</span>
+                            {/* --- MODIFICATION START: Added flex-1 and min-w-0 to fix long title bug --- */}
+                            <span className={cn("flex-1 truncate min-w-0", isCollapsed && "hidden")}>
+                              {session.name}
+                            </span>
+                            {/* --- MODIFICATION END --- */}
                              <Button
                                 onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }}
                                 variant="ghost" size="icon"
@@ -8210,7 +8227,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   </Button>
                 </DropdownMenuTrigger>
                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Account (Coming Soon)</DropdownMenuLabel>
+                    <DropdownMenuLabel>Account</DropdownMenuLabel>
+                    {/* --- MODIFICATION START: Added Export button with handler --- */}
+                    <DropdownMenuItem onClick={handleExport}>
+                      <Download className="mr-2 h-4 w-4" />
+                      <span>Export Sessions</span>
+                    </DropdownMenuItem>
+                    {/* --- MODIFICATION END --- */}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem disabled><Settings className="mr-2 h-4 w-4" /><span>Settings</span></DropdownMenuItem>
                     <DropdownMenuItem disabled><LifeBuoy className="mr-2 h-4 w-4" /><span>Support</span></DropdownMenuItem>
@@ -8267,7 +8290,7 @@ import 'reactflow/dist/style.css';
 
 function CanvasController() {
   const { fitView } = useReactFlow();
-  const { nodes } = useDashboard();
+  const { nodes, activeSessionId } = useDashboard();
 
   useEffect(() => {
     const isStreaming = nodes.some(node => node.data.isLoading);
@@ -8276,18 +8299,30 @@ function CanvasController() {
     }
   }, [nodes, fitView]);
 
+  // Effect to center on new/loaded session
+  useEffect(() => {
+    if (nodes.length > 0) {
+      const nodeToFocus = nodes[0];
+      if (nodeToFocus) {
+        fitView({
+          nodes: [{ id: nodeToFocus.id }],
+          duration: 600,
+          padding: 0.2,
+        });
+      }
+    }
+  }, [activeSessionId, fitView]);
+
   return null;
 }
 
 
 function DashboardCanvas() {
   const { resolvedTheme } = useTheme();
-  const { nodes, setNodes, edges, setEdges, activeSessionId } = useDashboard();
+  const { nodes, setNodes, edges, setEdges } = useDashboard();
   const [selectedNodes, setSelectedNodes] = React.useState<Node[]>([]);
   
-  // --- MODIFICATION START: Get viewport controls ---
   const { fitView } = useReactFlow();
-  // --- MODIFICATION END ---
 
   const onNodesChange = useCallback((changes: any) => setNodes((nds) => applyNodeChanges(changes, nds)), [setNodes]);
   const onEdgesChange = useCallback((changes: any) => setEdges((eds) => applyEdgeChanges(changes, eds)), [setEdges]);
@@ -8296,22 +8331,6 @@ function DashboardCanvas() {
 
   const nodeTypes = useMemo(() => ({ pitchNode: PitchNode }), []);
   const edgeTypes = useMemo(() => ({ smoothstep: SmoothStepEdge }), []);
-
-  // --- MODIFICATION START: Effect to center on new/loaded session ---
-  useEffect(() => {
-    if (nodes.length > 0) {
-      // Find the first node, which is the root of a new session
-      const nodeToFocus = nodes[0];
-      if (nodeToFocus) {
-        fitView({
-          nodes: [{ id: nodeToFocus.id }],
-          duration: 600, // Smooth animation
-          padding: 0.2,   // A bit of space around the node
-        });
-      }
-    }
-  }, [activeSessionId, fitView]); // Trigger whenever the session ID changes
-  // --- MODIFICATION END ---
 
   const handleStreamingAnalysis = useCallback(async (nodeId: string, pitch: string, file: File | null) => {
     setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, isLoading: true, response: '' } } : n));
@@ -8420,7 +8439,7 @@ function DashboardCanvas() {
         onSelectionChange={onSelectionChange}
         multiSelectionKeyCode={null}
         selectionKeyCode="Shift"
-        fitView // This will fit the view to show all nodes on initial load
+        fitView
       >
         <Controls />
         <Background variant={BackgroundVariant.Dots} gap={16} size={0.5} />
@@ -9419,8 +9438,8 @@ const LandingPage = ({ className }: PageProps) => {
       animate={{ opacity: 1 }}
       transition={{ delay: 1.2 }}
     >
-      <Link href="https://tidb-2025-hackathon.devpost.com/" target="_blank" rel="noopener noreferrer">
-      <span className="text-sm text-white/40">Proudly supported by our hackathon partners</span>
+      <Link href="https://tidb-2025-hackathon.devpost.com/." target="_blank" rel="noopener noreferrer">
+      <span className="text-sm text-white/40 hover:text-white transition-colors">Proudly supported by our hackathon partners</span>
       </Link>
       <div className="flex items-center justify-center gap-x-10 md:gap-x-12">
         <a href="https://moonshot.ai/" target="_blank" rel="noopener noreferrer" title="Kimi AI" className="transition-all duration-300 grayscale hover:grayscale-0 opacity-60 hover:opacity-100">
@@ -9457,6 +9476,16 @@ const LandingPage = ({ className }: PageProps) => {
           <Image
             src="/aws.png"
             alt="AWS Logo"
+            width={50}
+            height={32}
+            className="h-8 w-auto invert"
+          />
+        </a>
+
+        <a href="https://sheet0.org/" target="_blank" rel="noopener noreferrer" title="Sheet0" className="transition-all duration-300 grayscale hover:grayscale-0 opacity-60 hover:opacity-100">
+          <Image
+            src="/sheet0.png"
+            alt="Sheet0 Logo"
             width={50}
             height={32}
             className="h-8 w-auto invert"
@@ -10760,23 +10789,20 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [sessions]);
 
-  // --- FIX START ---
   const newSession = useCallback(() => {
     const id = `s_${Date.now()}`;
     const initialNodes: Node[] = [{ id: '1', type: 'pitchNode', position: { x: 250, y: 100 }, data: { pitch: '', response: null, isLoading: false }, }];
     const newSessionData: Session = { id, name: 'New Session', createdAt: Date.now(), nodes: initialNodes, edges: [] };
     
-    // Directly set the UI state to the new session's data
     setNodes(newSessionData.nodes);
     setEdges(newSessionData.edges);
     setActiveSessionId(id);
     
-    // Then, update the sessions map. This avoids the race condition.
     setSessions(prevSessions => ({
       ...prevSessions,
       [id]: newSessionData
     }));
-  }, []); // Dependencies are no longer needed
+  }, []);
   
   const deleteSession = useCallback((id: string) => {
     setSessions(prevSessions => {
@@ -10787,12 +10813,10 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
         const nextSessionToLoad = Object.values(remainingSessions).sort((a, b) => b.createdAt - a.createdAt)[0];
 
         if (nextSessionToLoad) {
-          // If another session exists, load it directly
           setNodes(nextSessionToLoad.nodes);
           setEdges(nextSessionToLoad.edges);
           setActiveSessionId(nextSessionToLoad.id);
         } else {
-          // If no sessions are left, create a new one from scratch
           const newId = `s_${Date.now()}`;
           const initialNodes: Node[] = [{ id: '1', type: 'pitchNode', position: { x: 250, y: 100 }, data: { pitch: '', response: null, isLoading: false }, }];
           const newSessionData: Session = { id: newId, name: 'New Session', createdAt: Date.now(), nodes: initialNodes, edges: [] };
@@ -10801,13 +10825,12 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
           setEdges(newSessionData.edges);
           setActiveSessionId(newSessionData.id);
           
-          return { [newId]: newSessionData }; // Return the new session map
+          return { [newId]: newSessionData };
         }
       }
       return remainingSessions;
     });
   }, [activeSessionId]);
-  // --- FIX END ---
   
   const value = { sessions, activeSessionId, nodes, setNodes, edges, setEdges, loadSession, newSession, deleteSession };
 

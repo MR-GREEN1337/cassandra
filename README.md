@@ -2,7 +2,7 @@
 
 [![Hackathon](https://img.shields.io/badge/TiDB%20AgentX%20Hackathon-2025-blueviolet)](https://tidb-2025-hackathon.devpost.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![X (Twitter)](https://img.shields.io/twitter/follow/mr_green1337?style=social)](https://twitter.com/mr_green1337)
+[![X (Twitter)](https://img.shields.io/twitter/follow/mr_green1337?style=social)](https://x.com/IslamHachimi)
 
 **Cassandra is an AI co-pilot for startup founders that de-risks new ventures by analyzing them against a knowledge base of 1,000+ startup failures.**
 
@@ -10,7 +10,7 @@ Developed by [mr-green1337](https://github.com/mr-green1337) for the TiDB AgentX
 
 ---
 
-### **[➡️ Live Demo ⬅️] انسانی([YOUR_LIVE_DEMO_URL])**
+### **[➡️ Live Demo ⬅️](https://use-cassandra.vercel.app)**
 
 ![Cassandra Screenshot](./public/screenshot.png)
 

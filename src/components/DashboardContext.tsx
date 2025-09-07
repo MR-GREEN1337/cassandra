@@ -1,3 +1,4 @@
+// --- FILE: src/components/DashboardContext.tsx ---
 "use client";
 
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
@@ -40,6 +41,9 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
   const debouncedEdges = useDebounce(edges, 500);
   
   useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const pitchFromUrl = searchParams.get('pitch');
+    
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
     const allSessions = saved ? JSON.parse(saved) : {};
     
@@ -49,6 +53,23 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
         }
         return acc;
     }, {} as { [id: string]: Session });
+
+    if (pitchFromUrl) {
+      const decodedPitch = decodeURIComponent(pitchFromUrl);
+      const id = `s_${Date.now()}`;
+      const initialNodes: Node[] = [{ id: '1', type: 'pitchNode', position: { x: 250, y: 100 }, data: { pitch: decodedPitch, response: null, isLoading: false }, }];
+      const sessionName = decodedPitch.substring(0, 40).trim() || "Untitled Session";
+      const newSessionData: Session = { id, name: sessionName, createdAt: Date.now(), nodes: initialNodes, edges: [] };
+
+      const updatedSessions = { ...validSessions, [id]: newSessionData };
+      setNodes(newSessionData.nodes);
+      setEdges(newSessionData.edges);
+      setActiveSessionId(id);
+      setSessions(updatedSessions);
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedSessions));
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
 
     const recentId = Object.values(validSessions).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0]?.id;
 
@@ -103,23 +124,21 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [sessions]);
 
-  // --- FIX START ---
   const newSession = useCallback(() => {
     const id = `s_${Date.now()}`;
     const initialNodes: Node[] = [{ id: '1', type: 'pitchNode', position: { x: 250, y: 100 }, data: { pitch: '', response: null, isLoading: false }, }];
     const newSessionData: Session = { id, name: 'New Session', createdAt: Date.now(), nodes: initialNodes, edges: [] };
     
-    // Directly set the UI state to the new session's data
     setNodes(newSessionData.nodes);
     setEdges(newSessionData.edges);
     setActiveSessionId(id);
     
-    // Then, update the sessions map. This avoids the race condition.
-    setSessions(prevSessions => ({
-      ...prevSessions,
-      [id]: newSessionData
-    }));
-  }, []); // Dependencies are no longer needed
+    setSessions(prevSessions => {
+      const updatedSessions = { ...prevSessions, [id]: newSessionData };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedSessions));
+      return updatedSessions;
+    });
+  }, []);
   
   const deleteSession = useCallback((id: string) => {
     setSessions(prevSessions => {
@@ -130,12 +149,10 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
         const nextSessionToLoad = Object.values(remainingSessions).sort((a, b) => b.createdAt - a.createdAt)[0];
 
         if (nextSessionToLoad) {
-          // If another session exists, load it directly
           setNodes(nextSessionToLoad.nodes);
           setEdges(nextSessionToLoad.edges);
           setActiveSessionId(nextSessionToLoad.id);
         } else {
-          // If no sessions are left, create a new one from scratch
           const newId = `s_${Date.now()}`;
           const initialNodes: Node[] = [{ id: '1', type: 'pitchNode', position: { x: 250, y: 100 }, data: { pitch: '', response: null, isLoading: false }, }];
           const newSessionData: Session = { id: newId, name: 'New Session', createdAt: Date.now(), nodes: initialNodes, edges: [] };
@@ -144,13 +161,12 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
           setEdges(newSessionData.edges);
           setActiveSessionId(newSessionData.id);
           
-          return { [newId]: newSessionData }; // Return the new session map
+          return { [newId]: newSessionData };
         }
       }
       return remainingSessions;
     });
   }, [activeSessionId]);
-  // --- FIX END ---
   
   const value = { sessions, activeSessionId, nodes, setNodes, edges, setEdges, loadSession, newSession, deleteSession };
 

@@ -1,3 +1,4 @@
+// --- FILE: src/components/PitchNode.tsx ---
 "use client";
 
 import React, { useState, useEffect, useRef, FC } from 'react';
@@ -53,7 +54,9 @@ const PitchNode: React.FC<NodeProps<PitchNodeData>> = (node) => {
   const { id, data } = node;
   const [currentPitch, setCurrentPitch] = useState(data.pitch || '');
   const [file, setFile] = useState<File | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  // --- MODIFICATION START: Initialize editing state based on incoming prop ---
+  const [isEditing, setIsEditing] = useState(!!data.pitch);
+  // --- MODIFICATION END ---
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -64,9 +67,16 @@ const PitchNode: React.FC<NodeProps<PitchNodeData>> = (node) => {
 
   const { isListening, toggleListening, error } = useAudioInput(handleTranscript);
 
+  // This hook ensures that if the node's data is updated from outside
+  // (e.g., loading a different session), the component's state reflects that change.
   useEffect(() => {
     setCurrentPitch(data.pitch || '');
+    // If we get a new pitch, assume we want to see it.
+    if (data.pitch) {
+      setIsEditing(true);
+    }
   }, [data.pitch]);
+
 
   useEffect(() => {
     if (textAreaRef.current) {

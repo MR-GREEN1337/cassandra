@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   ChevronsUpDown, LayoutGrid, BookUser, CreditCard, Settings, LifeBuoy, LogOut,
   HelpCircle, MessageSquare, PanelLeftClose, PanelLeftOpen, Sun, Moon, FolderKanban,
-  Loader2, Plus, Trash2,
+  Loader2, Plus, Trash2, Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardProvider, useDashboard, Session } from "@/components/DashboardContext";
@@ -23,17 +23,31 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { setTheme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(true);
   
-  // Get all session logic from our new context
   const { sessions, activeSessionId, loadSession, newSession, deleteSession } = useDashboard();
 
-  // Group sessions by date for the sidebar
+  const handleExport = () => {
+    if (Object.keys(sessions).length === 0) {
+        alert("No sessions to export.");
+        return;
+    }
+    const dataStr = JSON.stringify(sessions, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'cassandra-sessions.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const sessionGroups = useMemo(() => {
     const groups: { [key: string]: Session[] } = { Today: [], Yesterday: [], "Previous 7 Days": [], "Older": [] };
     const today = new Date(); const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1); const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
-    // THE FIX: Add .filter(Boolean) to safely remove any null or undefined entries
     Object.values(sessions)
-      .filter(Boolean) // <-- THIS LINE PREVENTS THE CRASH
+      .filter(Boolean)
       .sort((a, b) => b.createdAt - a.createdAt)
       .forEach(session => {
         const sessionDate = new Date(session.createdAt);
@@ -54,7 +68,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           isCollapsed ? "w-[56px]" : "w-[240px]"
         )}>
            <div className={cn("flex h-14 items-center border-b px-4")}>
-            {/* Placeholder for Logo */}
             <Logo hideText={isCollapsed} />
            </div>
            <div className="p-2">
@@ -80,7 +93,11 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                             )}
                           >
                             <MessageSquare className="h-4 w-4 shrink-0" />
-                            <span className={cn("truncate", isCollapsed && "hidden")}>{session.name}</span>
+                            {/* --- MODIFICATION START: Added flex-1 and min-w-0 to fix long title bug --- */}
+                            <span className={cn("flex-1 truncate min-w-0", isCollapsed && "hidden")}>
+                              {session.name}
+                            </span>
+                            {/* --- MODIFICATION END --- */}
                              <Button
                                 onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }}
                                 variant="ghost" size="icon"
@@ -145,7 +162,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                   </Button>
                 </DropdownMenuTrigger>
                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Account (Coming Soon)</DropdownMenuLabel>
+                    <DropdownMenuLabel>Account</DropdownMenuLabel>
+                    {/* --- MODIFICATION START: Added Export button with handler --- */}
+                    <DropdownMenuItem onClick={handleExport}>
+                      <Download className="mr-2 h-4 w-4" />
+                      <span>Export Sessions</span>
+                    </DropdownMenuItem>
+                    {/* --- MODIFICATION END --- */}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem disabled><Settings className="mr-2 h-4 w-4" /><span>Settings</span></DropdownMenuItem>
                     <DropdownMenuItem disabled><LifeBuoy className="mr-2 h-4 w-4" /><span>Support</span></DropdownMenuItem>

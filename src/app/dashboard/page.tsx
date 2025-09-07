@@ -1,3 +1,4 @@
+// --- FILE: src/app/dashboard/page.tsx ---
 "use client";
 
 import React, { useCallback, useMemo, useEffect } from 'react';
@@ -28,7 +29,7 @@ import 'reactflow/dist/style.css';
 
 function CanvasController() {
   const { fitView } = useReactFlow();
-  const { nodes } = useDashboard();
+  const { nodes, activeSessionId } = useDashboard();
 
   useEffect(() => {
     const isStreaming = nodes.some(node => node.data.isLoading);
@@ -37,18 +38,30 @@ function CanvasController() {
     }
   }, [nodes, fitView]);
 
+  // Effect to center on new/loaded session
+  useEffect(() => {
+    if (nodes.length > 0) {
+      const nodeToFocus = nodes[0];
+      if (nodeToFocus) {
+        fitView({
+          nodes: [{ id: nodeToFocus.id }],
+          duration: 600,
+          padding: 0.2,
+        });
+      }
+    }
+  }, [activeSessionId, fitView]);
+
   return null;
 }
 
 
 function DashboardCanvas() {
   const { resolvedTheme } = useTheme();
-  const { nodes, setNodes, edges, setEdges, activeSessionId } = useDashboard();
+  const { nodes, setNodes, edges, setEdges } = useDashboard();
   const [selectedNodes, setSelectedNodes] = React.useState<Node[]>([]);
   
-  // --- MODIFICATION START: Get viewport controls ---
   const { fitView } = useReactFlow();
-  // --- MODIFICATION END ---
 
   const onNodesChange = useCallback((changes: any) => setNodes((nds) => applyNodeChanges(changes, nds)), [setNodes]);
   const onEdgesChange = useCallback((changes: any) => setEdges((eds) => applyEdgeChanges(changes, eds)), [setEdges]);
@@ -58,29 +71,21 @@ function DashboardCanvas() {
   const nodeTypes = useMemo(() => ({ pitchNode: PitchNode }), []);
   const edgeTypes = useMemo(() => ({ smoothstep: SmoothStepEdge }), []);
 
-  // --- MODIFICATION START: Effect to center on new/loaded session ---
-  useEffect(() => {
-    if (nodes.length > 0) {
-      // Find the first node, which is the root of a new session
-      const nodeToFocus = nodes[0];
-      if (nodeToFocus) {
-        fitView({
-          nodes: [{ id: nodeToFocus.id }],
-          duration: 600, // Smooth animation
-          padding: 0.2,   // A bit of space around the node
-        });
-      }
-    }
-  }, [activeSessionId, fitView]); // Trigger whenever the session ID changes
-  // --- MODIFICATION END ---
-
   const handleStreamingAnalysis = useCallback(async (nodeId: string, pitch: string, file: File | null) => {
     setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, isLoading: true, response: '' } } : n));
-    
+
+    const currentNode = nodes.find(n => n.id === nodeId);
+    const parentId = currentNode?.data.parentId;
+    const parentNode = parentId ? nodes.find(n => n.id === parentId) : null;
+
     const formData = new FormData();
     formData.append('pitch', pitch);
     if (file) {
       formData.append('file', file);
+    }
+    if (parentNode) {
+      formData.append('parentPitch', parentNode.data.pitch);
+      if (parentNode.data.response) { formData.append('parentAnalysis', parentNode.data.response); }
     }
 
     try {
@@ -108,7 +113,7 @@ function DashboardCanvas() {
       const errorMessage = "Sorry, I couldn't complete the analysis. Please try again.";
       setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, response: errorMessage, isLoading: false } } : n));
     }
-  }, [setNodes]);
+  }, [setNodes, nodes]);
 
   const createFollowUpNode = useCallback((text: string, sourceId: string) => {
     const sourceNode = nodes.find(n => n.id === sourceId);
@@ -123,7 +128,7 @@ function DashboardCanvas() {
       id: newNodeId,
       type: 'pitchNode',
       position: { x: sourcePos.x + (width || newNodeWidth) / 2 - (newNodeWidth / 2), y: sourcePos.y + (height || 200) + 60 },
-      data: { pitch: text, response: null, isLoading: false, contextTitle },
+      data: { pitch: text, response: null, isLoading: false, contextTitle, parentId: sourceId },
     };
     const newEdge: Edge = {
       id: `e-${sourceId}-${newNodeId}`,
@@ -181,7 +186,7 @@ function DashboardCanvas() {
         onSelectionChange={onSelectionChange}
         multiSelectionKeyCode={null}
         selectionKeyCode="Shift"
-        fitView // This will fit the view to show all nodes on initial load
+        fitView
       >
         <Controls />
         <Background variant={BackgroundVariant.Dots} gap={16} size={0.5} />

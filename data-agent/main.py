@@ -6,25 +6,52 @@ from typing import List, Dict, Any, Set
 import google.generativeai as genai
 from openai import AsyncOpenAI
 from tavily import TavilyClient
-import mysql.connector.aio
-from mysql.connector.aio import pooling
-from dotenv import load_dotenv
-
+import mysql.connector.aio  # Ensure aio is imported
+from settings import settings
 # --- Configuration ---
-load_dotenv()
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
-openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+genai.configure(api_key=str(settings.GOOGLE_API_KEY.get_secret_value()))
+tavily = TavilyClient(api_key=str(settings.TAVILY_API_KEY.get_secret_value()))
+openai_client = AsyncOpenAI(api_key=str(settings.OPENAI_API_KEY.get_secret_value()))
 tidb_config = {
-    'host': os.getenv('TIDB_HOST'), 'port': int(os.getenv('TIDB_PORT', 4000)),
-    'user': os.getenv('TIDB_USER'), 'password': os.getenv('TIDB_PASSWORD'),
-    'database': os.getenv('TIDB_DATABASE'), 'ssl_verify_cert': True, 'ssl_verify_identity': True,
+    'host': settings.TIDB_HOST,
+    'port': int(settings.TIDB_PORT),
+    'user': settings.TIDB_USER,
+    'password': str(settings.TIDB_PASSWORD.get_secret_value()),
+    'database': settings.TIDB_DATABASE,
 }
 
+# --- Synchronous Connection Test (No changes here, it's good for debugging) ---
+connection = None
+try:
+    # Use the SYNCHRONOUS connector for a clearer error message
+    connection = mysql.connector.connect(**tidb_config)
+    
+    if connection.is_connected():
+        print("\n✅✅✅ SUCCESS: Database connection established! ✅✅✅")
+        cursor = connection.cursor()
+        cursor.execute("SELECT VERSION();")
+        record = cursor.fetchone()
+        print(f"Database version: {record[0]}")
+        cursor.close()
+    else:
+        print("\n❌❌❌ FAILURE: Connection object created, but not connected. ❌❌❌")
+
+except mysql.connector.Error as err:
+    print(f"\n❌❌❌ FAILURE: A mysql.connector error occurred: {err} ❌❌❌")
+    print("--- DEBUGGING CHECKLIST ---")
+    print("1. Is your IP address whitelisted in the TiDB Cloud console?")
+    print("2. Are the HOST, USER, and PASSWORD in your .env file 100% correct (no typos, no extra spaces)?")
+    print("3. Is your cluster 'Available' and not 'Paused' or 'Creating'?")
+
+finally:
+    if connection and connection.is_connected():
+        connection.close()
+        print("\nConnection closed.")
+
 # --- Agent Parameters ---
-RESEARCH_ITERATIONS = 10
+RESEARCH_ITERATIONS = 20
 BATCH_SIZE = 5
-SEMAPHORE = asyncio.Semaphore(5)  # Reduced from 10 to be more conservative
+SEMAPHORE = asyncio.Semaphore(5)
 SEED_TOPICS = [
     "Y Combinator startup post-mortems", "TechCrunch deadpool analysis",
     "CB Insights startup failure reports", "failed SaaS companies 2022",
@@ -33,19 +60,15 @@ SEED_TOPICS = [
     "failed HealthTech companies case studies", "top EdTech startup failures"
 ]
 
-# Global pool variable
-db_pool = None
-
+# --- MODIFIED: Connection Management ---
 async def get_db_connection():
-    """Get a database connection with proper error handling and debugging"""
-    global db_pool
+    """Creates and returns a new async database connection."""
     try:
-        conn = await db_pool.get_connection()
-        print(f"🔗 Got connection. Pool stats: {db_pool.pool_size - len(db_pool._cnx_queue._queue)} connections in use")
+        # Use the async connector directly instead of a pool
+        conn = await mysql.connector.aio.connect(**tidb_config)
         return conn
     except Exception as e:
-        print(f"❌ Failed to get connection: {e}")
-        print(f"Pool size: {db_pool.pool_size}, Queue size: {len(db_pool._cnx_queue._queue)}")
+        print(f"❌ Failed to create a new connection: {e}")
         raise
 
 async def safe_close_connection(conn):
@@ -53,22 +76,24 @@ async def safe_close_connection(conn):
     try:
         if conn and conn.is_connected():
             await conn.close()
-            print("🔌 Connection closed successfully")
     except Exception as e:
         print(f"⚠️ Error closing connection: {e}")
 
-# --- Agent Components ---
+# --- Agent Components (Now with proper cursor handling) ---
 async def seed_frontier():
     """Seed the research frontier with initial topics"""
     print("🌱 Seeding the research frontier...")
     conn = None
     try:
         conn = await get_db_connection()
-        async with await conn.cursor() as cursor:
+        cursor = await conn.cursor()  # FIXED: Await the cursor creation
+        try:
             for topic in SEED_TOPICS:
                 await cursor.execute("INSERT IGNORE INTO search_frontier (query, status) VALUES (%s, 'pending')", (topic,))
             await conn.commit()
-        print("✅ Frontier seeded.")
+            print("✅ Frontier seeded.")
+        finally:
+            await cursor.close()  # Always close the cursor
     except Exception as e:
         print(f"❌ Error seeding frontier: {e}")
         raise
@@ -80,10 +105,13 @@ async def fetch_tasks_from_frontier(limit: int) -> List[str]:
     conn = None
     try:
         conn = await get_db_connection()
-        async with await conn.cursor(dictionary=True) as cursor:
+        cursor = await conn.cursor(dictionary=True)  # FIXED: Await the cursor creation
+        try:
             await cursor.execute("SELECT query FROM search_frontier WHERE status = 'pending' LIMIT %s", (limit,))
             tasks = await cursor.fetchall()
             return [task['query'] for task in tasks]
+        finally:
+            await cursor.close()
     except Exception as e:
         print(f"❌ Error fetching tasks: {e}")
         return []
@@ -95,7 +123,6 @@ async def analyst_agent(query: str, search_results: List[Dict]) -> List[Dict]:
     print(f"  -> Analyzing (Pro): {query}")
     model = genai.GenerativeModel('gemini-1.5-pro-latest', generation_config={"response_mime_type": "application/json"})
     
-    # Context now includes a clear 'Source URL' for each piece of content
     context = "\n\n".join([f"Source URL: {res['url']}\nContent: {res['content']}" for res in search_results])
     
     prompt = f"""
@@ -109,7 +136,7 @@ async def analyst_agent(query: str, search_results: List[Dict]) -> List[Dict]:
         3.  "what_they_did": string
         4.  "what_went_wrong": string
         5.  "key_takeaway": string
-        6.  "source_url": string  // <-- ADDED KEY: The URL from the 'Source URL' line in the context.
+        6.  "source_url": string
 
         IMPORTANT: Ensure all string values are properly escaped for valid JSON output.
 
@@ -120,7 +147,6 @@ async def analyst_agent(query: str, search_results: List[Dict]) -> List[Dict]:
     """
     try:
         response = await model.generate_content_async(prompt)
-        # Clean the response text to ensure it's valid JSON
         cleaned_text = response.text.strip().replace("```json", "").replace("```", "")
         return json.loads(cleaned_text).get("failures", [])
     except Exception as e:
@@ -147,11 +173,14 @@ async def expand_frontier(new_cases: List[Dict]):
         new_queries = [q.strip() for q in response.text.split('\n') if q.strip() and not q.strip().startswith('-')]
         
         conn = await get_db_connection()
-        async with await conn.cursor() as cursor:
+        cursor = await conn.cursor()  # FIXED: Await the cursor creation
+        try:
             for query in new_queries:
                 await cursor.execute("INSERT IGNORE INTO search_frontier (query, status) VALUES (%s, 'pending')", (query,))
             await conn.commit()
-        print(f"✅ Added {len(new_queries)} new queries to the frontier.")
+            print(f"✅ Added {len(new_queries)} new queries to the frontier.")
+        finally:
+            await cursor.close()
         
     except Exception as e:
         print(f"  -> ❌ Expand Frontier Error: {e}")
@@ -170,13 +199,12 @@ async def loader_task(case: Dict, existing_companies: Set[str]):
 
     conn = None
     try:
-        # Get embedding first (no DB connection needed)
         embedding_response = await openai_client.embeddings.create(model="text-embedding-3-small", input=text_to_embed)
         embedding = embedding_response.data[0].embedding
         
-        # Then handle database operation
         conn = await get_db_connection()
-        async with await conn.cursor() as cursor:
+        cursor = await conn.cursor()  # FIXED: Await the cursor creation
+        try:
             await cursor.execute(
                 """
                 INSERT INTO startup_failures 
@@ -186,17 +214,19 @@ async def loader_task(case: Dict, existing_companies: Set[str]):
                 (
                     company_name, 
                     case.get('failure_reason_category'), 
-                    case.get('what_they_did'), # Using detailed field as summary
+                    case.get('what_they_did'),
                     case.get('what_they_did'), 
                     case.get('what_went_wrong'), 
                     case.get('key_takeaway'),
-                    case.get('source_url'),    # <-- ADDED VALUE
+                    case.get('source_url'),
                     json.dumps(embedding)
                 )
             )
             await conn.commit()
-        print(f"    -> ✅ Stored: {company_name} (from {case.get('source_url')})")
-        return 1
+            print(f"    -> ✅ Stored: {company_name} (from {case.get('source_url')})")
+            return 1
+        finally:
+            await cursor.close()
         
     except Exception as e:
         print(f"    -> ❌ Loader Error for '{company_name}': {e}")
@@ -209,10 +239,13 @@ async def get_existing_companies() -> Set[str]:
     conn = None
     try:
         conn = await get_db_connection()
-        async with await conn.cursor() as cursor:
+        cursor = await conn.cursor()  # FIXED: Await the cursor creation
+        try:
             await cursor.execute("SELECT LOWER(company_name) FROM startup_failures")
             result = await cursor.fetchall()
             return {row[0] for row in result}
+        finally:
+            await cursor.close()
     except Exception as e:
         print(f"❌ Error getting existing companies: {e}")
         return set()
@@ -224,10 +257,13 @@ async def update_completed_tasks(tasks_to_run: List[str]):
     conn = None
     try:
         conn = await get_db_connection()
-        async with await conn.cursor() as cursor:
+        cursor = await conn.cursor()  # FIXED: Await the cursor creation
+        try:
             for query in tasks_to_run:
                 await cursor.execute("UPDATE search_frontier SET status = 'completed' WHERE query = %s", (query,))
             await conn.commit()
+        finally:
+            await cursor.close()
     except Exception as e:
         print(f"❌ Error updating completed tasks: {e}")
     finally:
@@ -239,9 +275,12 @@ async def reset_agent_state():
     conn = None
     try:
         conn = await get_db_connection()
-        async with await conn.cursor() as cursor:
+        cursor = await conn.cursor()  # FIXED: Await the cursor creation
+        try:
             await cursor.execute("DELETE FROM search_frontier")
             await conn.commit()
+        finally:
+            await cursor.close()
     except Exception as e:
         print(f"❌ Error resetting agent state: {e}")
         raise
@@ -250,34 +289,23 @@ async def reset_agent_state():
 
 # --- Main Orchestrator ---
 async def main():
-    global db_pool
-    total_startups_found = 0  # Initialize at the top
+    total_startups_found = 0
     
     print("--- Starting Cassandra Industrial Research Agent (URL-Aware Edition) ---")
     
     try:
-        # Create connection pool with more conservative settings
-        db_pool = pooling.MySQLConnectionPool(
-            pool_name="tidb_pool", 
-            pool_size=5,  # Reduced from 10
-            pool_reset_session=True,
-            **tidb_config
-        )
-        print("✅ Database connection pool created.")
-
-        # Test connection first
+        # Test connection first (now using the async connector)
+        print("🧪 Performing initial async connection test...")
         test_conn = await get_db_connection()
         await safe_close_connection(test_conn)
-        print("✅ Database connection test successful.")
+        print("✅ Async database connection test successful.")
 
-        # Reset and seed with proper connection handling
         await reset_agent_state()
         await seed_frontier()
         
         for i in range(RESEARCH_ITERATIONS):
             print(f"\n--- 🔄 Starting Research Iteration {i+1}/{RESEARCH_ITERATIONS} ---")
             
-            # Get existing companies and tasks
             existing_companies = await get_existing_companies()
             initial_count = len(existing_companies)
             tasks_to_run = await fetch_tasks_from_frontier(BATCH_SIZE)
@@ -297,11 +325,9 @@ async def main():
                         print(f"  -> ❌ Research Error for '{query}': {e}")
                         return []
 
-            # Execute research tasks
             pipeline_tasks = [research_and_analyze_task(query) for query in tasks_to_run]
             results_from_pipelines = await asyncio.gather(*pipeline_tasks, return_exceptions=True)
             
-            # Handle exceptions in results
             all_new_cases = []
             for result in results_from_pipelines:
                 if isinstance(result, Exception):
@@ -311,16 +337,13 @@ async def main():
 
             print(f"  -> Found {len(all_new_cases)} potential cases. Loading new ones into TiDB...")
             
-            # Load cases with limited concurrency
             loader_tasks = [loader_task(case, existing_companies) for case in all_new_cases]
             results = await asyncio.gather(*loader_tasks, return_exceptions=True)
             
-            # Count successful insertions
             newly_added_count = sum(r for r in results if isinstance(r, int) and r > 0)
             total_startups_found += newly_added_count
             print(f"  -> Stored {newly_added_count} new startups. Total in DB: {initial_count + newly_added_count}")
 
-            # Update completed tasks and expand frontier
             await update_completed_tasks(tasks_to_run)
             await expand_frontier(all_new_cases)
 

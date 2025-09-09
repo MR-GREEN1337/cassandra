@@ -1,19 +1,21 @@
 ## Project Vision and Core Concept
 ---------------------------------
-The project is a web application named "Cassandra", a frontend-only prototype designed to act as an AI co-pilot for startup founders.
+The project is a full-stack web application named "Cassandra", designed to act as an AI co-pilot for startup founders.
 
-The core premise is to de-risk new ventures by analyzing a user's startup pitch, business plan, or feature idea against a simulated knowledge base of 1,000+ startup failures. The AI's goal is to identify potential pitfalls, competitive threats, and market risks proactively.
+The core premise is to de-risk new ventures by analyzing a user's startup pitch, business plan, or uploaded documents against a knowledge base of 1,000+ startup failures. The AI's goal is to identify potential pitfalls, competitive threats, and market risks, citing its sources with links to the original case studies.
 
-**Crucially, this is a web-only prototype. All AI responses are currently simulated within the frontend code to demonstrate the UX and functionality without a real backend.**
-
-The user interface is a spatial, canvas-based system built with Next.js and React Flow, which allows for a non-linear exploration of ideas:
+The system is composed of three main parts:
+1.  **Data Ingestion Agent ():** A Python-based agentic system that scours the web for startup post-mortems, extracts structured data using an LLM (Gemini 1.5 Pro), generates vector embeddings (OpenAI), and stores everything in a TiDB Serverless database.
+2.  **RAG Backend API ():** A Next.js serverless function that receives a user's query and optional file. It performs a hybrid vector + full-text search against the TiDB database to find relevant failure cases. It then uses the Kimi LLM to synthesize this retrieved context and the user's query into a coherent, cited analysis, which is streamed back to the frontend.
+3.  **Frontend Interface ():** A spatial, canvas-based UI built with Next.js and React Flow. It allows for a non-linear exploration of ideas. The AI's analysis, complete with favicon-enhanced links to sources, appears in nodes that dynamically resize. Users can create follow-up nodes to explore specific risks in more detail. All sessions are saved to local storage.
 
 Key Features:
-- **Spatial Idea Exploration:** Users create nodes on an infinite canvas. The initial node is for the main pitch.
-- **Contextual Follow-ups:** Users can highlight specific risks or points in the AI's analysis (e.g., "competitive pressure") to create new, connected nodes for deeper, focused exploration on that specific topic.
-- **Node Merging:** Users can select multiple analysis nodes and merge them into a single, synthesized summary node.
-- **Professional Session Management:** All analysis sessions are automatically saved to the browser's . A "startup-like" sidebar allows users to load, create, and delete past sessions, which are grouped by date.
-- **Polished UI:** Includes a minimap for navigation, light/dark themes, and a clean aesthetic using Tailwind CSS and Shadcn UI.
+- **Hybrid RAG:** Leverages TiDB's vector and full-text search to find both semantically and factually similar failure cases.
+- **Source Citation:** The AI is prompted to include Markdown links to the original case studies, which are rendered with favicons in the UI.
+- **Spatial Idea Exploration:** Users create and connect nodes on an infinite canvas to visually map out their risk analysis.
+- **File Uploads:** Users can upload documents (business plans, etc.) which are parsed by the Kimi API and added to the analysis context.
+- **Professional Session Management:** All analysis sessions are saved to , with a sidebar for creating, loading, and deleting sessions.
+- **Polished UI:** Includes a minimap, light/dark themes, and a clean aesthetic using Tailwind CSS and Shadcn UI.
 
 
 
@@ -28,6 +30,7 @@ Key Features:
 │   ├── README.md
 │   └── uv.lock
 ├── eslint.config.mjs
+├── LICENSE
 ├── next-env.d.ts
 ├── next.config.ts
 ├── package-lock.json
@@ -46,28 +49,36 @@ Key Features:
 ├── README.md
 ├── src
 │   ├── app
+│   │   ├── (pages)
+│   │   │   ├── browse
+│   │   │   │   ├── _components
+│   │   │   │   │   └── search-input.tsx
+│   │   │   │   ├── layout.tsx
+│   │   │   │   └── page.tsx
+│   │   │   ├── dashboard
+│   │   │   │   ├── layout.tsx
+│   │   │   │   └── page.tsx
+│   │   │   └── page.tsx
 │   │   ├── api
 │   │   │   └── analyze
 │   │   │       └── route.ts
-│   │   ├── dashboard
-│   │   │   ├── layout.tsx
-│   │   │   └── page.tsx
 │   │   ├── favicon.ico
 │   │   ├── globals.css
-│   │   ├── layout.tsx
-│   │   └── page.tsx
+│   │   └── layout.tsx
 │   ├── components
 │   │   ├── CassandraLogo.tsx
 │   │   ├── DashboardContext.tsx
-│   │   ├── KimiLogo.tsx
 │   │   ├── Logo.tsx
 │   │   ├── PitchNode.tsx
 │   │   ├── theme-provider.tsx
 │   │   ├── ThemeToggle.tsx
 │   │   └── ui
 │   │       ├── avatar.tsx
+│   │       ├── badge.tsx
 │   │       ├── button.tsx
+│   │       ├── card.tsx
 │   │       ├── dropdown-menu.tsx
+│   │       ├── input.tsx
 │   │       ├── scroll-area.tsx
 │   │       ├── separator.tsx
 │   │       ├── sheet.tsx
@@ -108,7 +119,7 @@ Key Features:
 │       └── utils.ts
 └── tsconfig.json
 
-16 directories, 72 files
+19 directories, 78 files
 
 
 
@@ -5477,6 +5488,7 @@ export namespace Prisma {
     whatWentWrong: number
     keyTakeaway: number
     sourceUrl: number
+    summary_vector: number
     _all: number
   }
 
@@ -5520,6 +5532,7 @@ export namespace Prisma {
     whatWentWrong?: true
     keyTakeaway?: true
     sourceUrl?: true
+    summary_vector?: true
     _all?: true
   }
 
@@ -5618,6 +5631,7 @@ export namespace Prisma {
     whatWentWrong: string | null
     keyTakeaway: string | null
     sourceUrl: string | null
+    summary_vector: JsonValue | null
     _count: StartupFailureCountAggregateOutputType | null
     _avg: StartupFailureAvgAggregateOutputType | null
     _sum: StartupFailureSumAggregateOutputType | null
@@ -5648,6 +5662,7 @@ export namespace Prisma {
     whatWentWrong?: boolean
     keyTakeaway?: boolean
     sourceUrl?: boolean
+    summary_vector?: boolean
   }, ExtArgs["result"]["startupFailure"]>
 
 
@@ -5661,9 +5676,10 @@ export namespace Prisma {
     whatWentWrong?: boolean
     keyTakeaway?: boolean
     sourceUrl?: boolean
+    summary_vector?: boolean
   }
 
-  export type StartupFailureOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "companyName" | "failureReason" | "summary" | "whatTheyDid" | "whatWentWrong" | "keyTakeaway" | "sourceUrl", ExtArgs["result"]["startupFailure"]>
+  export type StartupFailureOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "companyName" | "failureReason" | "summary" | "whatTheyDid" | "whatWentWrong" | "keyTakeaway" | "sourceUrl" | "summary_vector", ExtArgs["result"]["startupFailure"]>
 
   export type $StartupFailurePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "StartupFailure"
@@ -5677,6 +5693,7 @@ export namespace Prisma {
       whatWentWrong: string | null
       keyTakeaway: string | null
       sourceUrl: string | null
+      summary_vector: Prisma.JsonValue | null
     }, ExtArgs["result"]["startupFailure"]>
     composites: {}
   }
@@ -6054,6 +6071,7 @@ export namespace Prisma {
     readonly whatWentWrong: FieldRef<"StartupFailure", 'String'>
     readonly keyTakeaway: FieldRef<"StartupFailure", 'String'>
     readonly sourceUrl: FieldRef<"StartupFailure", 'String'>
+    readonly summary_vector: FieldRef<"StartupFailure", 'Json'>
   }
     
 
@@ -7302,7 +7320,8 @@ export namespace Prisma {
     whatTheyDid: 'whatTheyDid',
     whatWentWrong: 'whatWentWrong',
     keyTakeaway: 'keyTakeaway',
-    sourceUrl: 'sourceUrl'
+    sourceUrl: 'sourceUrl',
+    summary_vector: 'summary_vector'
   };
 
   export type StartupFailureScalarFieldEnum = (typeof StartupFailureScalarFieldEnum)[keyof typeof StartupFailureScalarFieldEnum]
@@ -7324,6 +7343,31 @@ export namespace Prisma {
   };
 
   export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
+
+
+  export const NullableJsonNullValueInput: {
+    DbNull: typeof DbNull,
+    JsonNull: typeof JsonNull
+  };
+
+  export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
+
+
+  export const JsonNullValueFilter: {
+    DbNull: typeof DbNull,
+    JsonNull: typeof JsonNull,
+    AnyNull: typeof AnyNull
+  };
+
+  export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
+
+
+  export const QueryMode: {
+    default: 'default',
+    insensitive: 'insensitive'
+  };
+
+  export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
 
 
   export const NullsOrder: {
@@ -7374,6 +7418,20 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'Json'
+   */
+  export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
+    
+
+
+  /**
+   * Reference to a field of type 'QueryMode'
+   */
+  export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
+    
+
+
+  /**
    * Reference to a field of type 'Status'
    */
   export type EnumStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Status'>
@@ -7409,6 +7467,7 @@ export namespace Prisma {
     whatWentWrong?: StringNullableFilter<"StartupFailure"> | string | null
     keyTakeaway?: StringNullableFilter<"StartupFailure"> | string | null
     sourceUrl?: StringNullableFilter<"StartupFailure"> | string | null
+    summary_vector?: JsonNullableFilter<"StartupFailure">
   }
 
   export type StartupFailureOrderByWithRelationInput = {
@@ -7420,6 +7479,7 @@ export namespace Prisma {
     whatWentWrong?: SortOrderInput | SortOrder
     keyTakeaway?: SortOrderInput | SortOrder
     sourceUrl?: SortOrderInput | SortOrder
+    summary_vector?: SortOrderInput | SortOrder
     _relevance?: StartupFailureOrderByRelevanceInput
   }
 
@@ -7435,6 +7495,7 @@ export namespace Prisma {
     whatWentWrong?: StringNullableFilter<"StartupFailure"> | string | null
     keyTakeaway?: StringNullableFilter<"StartupFailure"> | string | null
     sourceUrl?: StringNullableFilter<"StartupFailure"> | string | null
+    summary_vector?: JsonNullableFilter<"StartupFailure">
   }, "id">
 
   export type StartupFailureOrderByWithAggregationInput = {
@@ -7446,6 +7507,7 @@ export namespace Prisma {
     whatWentWrong?: SortOrderInput | SortOrder
     keyTakeaway?: SortOrderInput | SortOrder
     sourceUrl?: SortOrderInput | SortOrder
+    summary_vector?: SortOrderInput | SortOrder
     _count?: StartupFailureCountOrderByAggregateInput
     _avg?: StartupFailureAvgOrderByAggregateInput
     _max?: StartupFailureMaxOrderByAggregateInput
@@ -7465,6 +7527,7 @@ export namespace Prisma {
     whatWentWrong?: StringNullableWithAggregatesFilter<"StartupFailure"> | string | null
     keyTakeaway?: StringNullableWithAggregatesFilter<"StartupFailure"> | string | null
     sourceUrl?: StringNullableWithAggregatesFilter<"StartupFailure"> | string | null
+    summary_vector?: JsonNullableWithAggregatesFilter<"StartupFailure">
   }
 
   export type SearchFrontierWhereInput = {
@@ -7525,6 +7588,7 @@ export namespace Prisma {
     whatWentWrong?: string | null
     keyTakeaway?: string | null
     sourceUrl?: string | null
+    summary_vector?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type StartupFailureUncheckedCreateInput = {
@@ -7536,6 +7600,7 @@ export namespace Prisma {
     whatWentWrong?: string | null
     keyTakeaway?: string | null
     sourceUrl?: string | null
+    summary_vector?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type StartupFailureUpdateInput = {
@@ -7546,6 +7611,7 @@ export namespace Prisma {
     whatWentWrong?: NullableStringFieldUpdateOperationsInput | string | null
     keyTakeaway?: NullableStringFieldUpdateOperationsInput | string | null
     sourceUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    summary_vector?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type StartupFailureUncheckedUpdateInput = {
@@ -7557,6 +7623,7 @@ export namespace Prisma {
     whatWentWrong?: NullableStringFieldUpdateOperationsInput | string | null
     keyTakeaway?: NullableStringFieldUpdateOperationsInput | string | null
     sourceUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    summary_vector?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type StartupFailureCreateManyInput = {
@@ -7568,6 +7635,7 @@ export namespace Prisma {
     whatWentWrong?: string | null
     keyTakeaway?: string | null
     sourceUrl?: string | null
+    summary_vector?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type StartupFailureUpdateManyMutationInput = {
@@ -7578,6 +7646,7 @@ export namespace Prisma {
     whatWentWrong?: NullableStringFieldUpdateOperationsInput | string | null
     keyTakeaway?: NullableStringFieldUpdateOperationsInput | string | null
     sourceUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    summary_vector?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type StartupFailureUncheckedUpdateManyInput = {
@@ -7589,6 +7658,7 @@ export namespace Prisma {
     whatWentWrong?: NullableStringFieldUpdateOperationsInput | string | null
     keyTakeaway?: NullableStringFieldUpdateOperationsInput | string | null
     sourceUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    summary_vector?: NullableJsonNullValueInput | InputJsonValue
   }
 
   export type SearchFrontierCreateInput = {
@@ -7677,6 +7747,29 @@ export namespace Prisma {
     search?: string
     not?: NestedStringNullableFilter<$PrismaModel> | string | null
   }
+  export type JsonNullableFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<JsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableFilterBase<$PrismaModel>>, 'path'>>,
+        Required<JsonNullableFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<JsonNullableFilterBase<$PrismaModel>>, 'path'>>
+
+  export type JsonNullableFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue
+    lte?: InputJsonValue
+    gt?: InputJsonValue
+    gte?: InputJsonValue
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+  }
 
   export type SortOrderInput = {
     sort: SortOrder
@@ -7698,6 +7791,7 @@ export namespace Prisma {
     whatWentWrong?: SortOrder
     keyTakeaway?: SortOrder
     sourceUrl?: SortOrder
+    summary_vector?: SortOrder
   }
 
   export type StartupFailureAvgOrderByAggregateInput = {
@@ -7780,6 +7874,32 @@ export namespace Prisma {
     _count?: NestedIntNullableFilter<$PrismaModel>
     _min?: NestedStringNullableFilter<$PrismaModel>
     _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+  export type JsonNullableWithAggregatesFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>,
+        Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<JsonNullableWithAggregatesFilterBase<$PrismaModel>>, 'path'>>
+
+  export type JsonNullableWithAggregatesFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue
+    lte?: InputJsonValue
+    gt?: InputJsonValue
+    gte?: InputJsonValue
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedJsonNullableFilter<$PrismaModel>
+    _max?: NestedJsonNullableFilter<$PrismaModel>
   }
 
   export type EnumStatusFilter<$PrismaModel = never> = {
@@ -7997,6 +8117,29 @@ export namespace Prisma {
     gte?: number | IntFieldRefInput<$PrismaModel>
     not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
+  export type NestedJsonNullableFilter<$PrismaModel = never> =
+    | PatchUndefined<
+        Either<Required<NestedJsonNullableFilterBase<$PrismaModel>>, Exclude<keyof Required<NestedJsonNullableFilterBase<$PrismaModel>>, 'path'>>,
+        Required<NestedJsonNullableFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<NestedJsonNullableFilterBase<$PrismaModel>>, 'path'>>
+
+  export type NestedJsonNullableFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue
+    lte?: InputJsonValue
+    gt?: InputJsonValue
+    gte?: InputJsonValue
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+  }
 
   export type NestedEnumStatusFilter<$PrismaModel = never> = {
     equals?: $Enums.Status | EnumStatusFieldRefInput<$PrismaModel>
@@ -8061,7 +8204,7 @@ export * from "./index"
 // --- FILE: ./src/generated/prisma/client.d.ts ---
 
 export * from "./index"
-// --- FILE: ./src/app/dashboard/layout.tsx ---
+// --- FILE: ./src/app/(pages)/dashboard/layout.tsx ---
 
 "use client";
 
@@ -8213,6 +8356,17 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               </DropdownMenu>
 
             <div className="ml-auto flex items-center gap-2">
+            <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <Button asChild variant="ghost" size="icon" className="h-8 w-8">
+                      <Link href="/browse">
+                        <LayoutGrid className="h-4 w-4" />
+                        <span className="sr-only">Browse Corpus</span>
+                      </Link>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Browse Corpus</TooltipContent>
+              </Tooltip>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" /><Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" /><span className="sr-only">Toggle theme</span></Button></DropdownMenuTrigger>
                 <DropdownMenuContent align="end"><DropdownMenuItem onClick={() => setTheme("light")}>Light</DropdownMenuItem><DropdownMenuItem onClick={() => setTheme("dark")}>Dark</DropdownMenuItem><DropdownMenuItem onClick={() => setTheme("system")}>System</DropdownMenuItem></DropdownMenuContent>
@@ -8258,8 +8412,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     </DashboardProvider>
   );
 }
-// --- FILE: ./src/app/dashboard/page.tsx ---
+// --- FILE: ./src/app/(pages)/dashboard/page.tsx ---
 
+// --- FILE: src/app/dashboard/page.tsx ---
 "use client";
 
 import React, { useCallback, useMemo, useEffect } from 'react';
@@ -8275,14 +8430,13 @@ import {
   MiniMap,
   BackgroundVariant,
   SmoothStepEdge,
-  Node,
   Edge,
   useReactFlow
 } from 'reactflow';
 import { useTheme } from 'next-themes';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrainCircuit } from 'lucide-react';
-import { useDashboard } from '@/components/DashboardContext';
+import { useDashboard, CassandraNode } from '@/components/DashboardContext';
 import PitchNode from '@/components/PitchNode';
 import { Button } from '@/components/ui/button';
 
@@ -8299,19 +8453,15 @@ function CanvasController() {
     }
   }, [nodes, fitView]);
 
-  // Effect to center on new/loaded session
   useEffect(() => {
     if (nodes.length > 0) {
-      const nodeToFocus = nodes[0];
-      if (nodeToFocus) {
-        fitView({
-          nodes: [{ id: nodeToFocus.id }],
-          duration: 600,
-          padding: 0.2,
-        });
-      }
+      fitView({
+        nodes: [{ id: nodes[0].id }],
+        duration: 800,
+        padding: 0.2,
+      });
     }
-  }, [activeSessionId, fitView]);
+  }, [activeSessionId]); // Removed `fitView` and `nodes` from deps to only run on session change
 
   return null;
 }
@@ -8320,68 +8470,115 @@ function CanvasController() {
 function DashboardCanvas() {
   const { resolvedTheme } = useTheme();
   const { nodes, setNodes, edges, setEdges } = useDashboard();
-  const [selectedNodes, setSelectedNodes] = React.useState<Node[]>([]);
+  const [selectedNodes, setSelectedNodes] = React.useState<CassandraNode[]>([]);
   
   const { fitView } = useReactFlow();
 
   const onNodesChange = useCallback((changes: any) => setNodes((nds) => applyNodeChanges(changes, nds)), [setNodes]);
   const onEdgesChange = useCallback((changes: any) => setEdges((eds) => applyEdgeChanges(changes, eds)), [setEdges]);
   const onConnect: OnConnect = useCallback((connection) => setEdges((eds) => addEdge(connection, eds)), [setEdges]);
-  const onSelectionChange = useCallback(({ nodes }: { nodes: Node[] }) => { setSelectedNodes(nodes); }, []);
+  const onSelectionChange = useCallback(({ nodes }: { nodes: CassandraNode[] }) => { setSelectedNodes(nodes); }, []);
 
   const nodeTypes = useMemo(() => ({ pitchNode: PitchNode }), []);
   const edgeTypes = useMemo(() => ({ smoothstep: SmoothStepEdge }), []);
 
   const handleStreamingAnalysis = useCallback(async (nodeId: string, pitch: string, file: File | null) => {
-    setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, isLoading: true, response: '' } } : n));
-    
+    setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, isLoading: true, response: '', structuredResponse: null } } : n));
+
+    const currentNode = nodes.find(n => n.id === nodeId);
+    const parentId = currentNode?.data.parentId;
+    const parentNode = parentId ? nodes.find(n => n.id === parentId) : null;
+
     const formData = new FormData();
     formData.append('pitch', pitch);
-    if (file) {
-      formData.append('file', file);
+    if (file) formData.append('file', file);
+    if (parentNode) {
+      formData.append('parentPitch', parentNode.data.pitch);
+      if (parentNode.data.response) formData.append('parentAnalysis', parentNode.data.response);
     }
 
     try {
-      const response = await fetch('/api/analyze', {
-        method: 'POST',
-        body: formData,
-      });
+      const response = await fetch('/api/analyze', { method: 'POST', body: formData });
       
-      if (!response.ok || !response.body) { throw new Error(`API error: ${response.statusText}`); }
+      if (!response.ok || !response.body) throw new Error(`API error: ${response.statusText}`);
+      
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = '';
+      let jsonParsed = false;
+      const separator = '---';
+
       const read = async () => {
         const { done, value } = await reader.read();
         if (done) {
           setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, isLoading: false } } : n));
           return;
         }
-        const chunk = decoder.decode(value, { stream: true });
-        setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, response: (n.data.response || '') + chunk } } : n));
+
+        buffer += decoder.decode(value, { stream: true });
+        
+        if (!jsonParsed) {
+          const separatorIndex = buffer.indexOf(separator);
+          if (separatorIndex !== -1) {
+            const jsonString = buffer.substring(0, separatorIndex);
+            try {
+              const parsedJson = JSON.parse(jsonString);
+              setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, structuredResponse: parsedJson } } : n));
+              
+              const markdownContent = buffer.substring(separatorIndex + separator.length);
+              setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, response: markdownContent } } : n));
+
+              jsonParsed = true;
+            } catch (e) {
+              // Incomplete JSON, continue buffering.
+            }
+          }
+        } else {
+          // JSON already parsed, append the rest of the stream as markdown
+          setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, response: (n.data.response || '') + buffer } } : n));
+          // Reset buffer after appending
+          buffer = '';
+        }
+
+        // After processing, if jsonParsed, we can append the rest of the current chunk directly
+        if(jsonParsed && buffer.length > 0) {
+           setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, response: (n.data.response || '') + buffer } } : n));
+           buffer = '';
+        }
+        
         await read();
       };
       await read();
     } catch (error) {
       console.error("Failed to stream analysis:", error);
-      const errorMessage = "Sorry, I couldn't complete the analysis. Please try again.";
+      const errorMessage = "Sorry, I couldn't complete the analysis. The AI model may be overloaded. Please try again.";
       setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, response: errorMessage, isLoading: false } } : n));
     }
-  }, [setNodes]);
+  }, [setNodes, nodes]);
 
   const createFollowUpNode = useCallback((text: string, sourceId: string) => {
     const sourceNode = nodes.find(n => n.id === sourceId);
-    if (!sourceNode) { return; }
+    if (!sourceNode) return;
     const { position: sourcePos, data: sourceData, width, height } = sourceNode;
-    if (!sourcePos) { return; }
+    if (!sourcePos) return;
+
     const newNodeId = `node_${Date.now()}`;
     const contextTitle = sourceData.pitch && sourceData.pitch.length > 50 ? sourceData.pitch.substring(0, 50) + '...' : sourceData.pitch;
     const newNodeWidth = 500;
 
-    const newNode: Node = {
+    const newNode: CassandraNode = {
       id: newNodeId,
       type: 'pitchNode',
       position: { x: sourcePos.x + (width || newNodeWidth) / 2 - (newNodeWidth / 2), y: sourcePos.y + (height || 200) + 60 },
-      data: { pitch: text, response: null, isLoading: false, contextTitle },
+      data: { 
+        pitch: text, 
+        response: null, 
+        isLoading: false, 
+        contextTitle, 
+        parentId: sourceId,
+        onAnalysis: () => {},
+        createFollowUpNode: () => {},
+      },
     };
     const newEdge: Edge = {
       id: `e-${sourceId}-${newNodeId}`,
@@ -8401,15 +8598,22 @@ function DashboardCanvas() {
     const avgX = selectedNodes.reduce((s, n) => s + n.position.x, 0) / selectedNodes.length;
     const avgY = selectedNodes.reduce((s, n) => s + n.position.y, 0) / selectedNodes.length;
     const newId = `n_merged_${Date.now()}`;
-    const loadingNode: Node = { id: newId, type: 'pitchNode', position: { x: avgX, y: avgY }, data: { pitch: 'Merging nodes...', isLoading: true, response: null } };
+
+    const loadingNode: CassandraNode = { 
+      id: newId, 
+      type: 'pitchNode', 
+      position: { x: avgX, y: avgY }, 
+      data: { pitch: 'Merging nodes...', isLoading: true, response: null, onAnalysis: () => {}, createFollowUpNode: () => {} } 
+    };
     const selectedIds = new Set(selectedNodes.map(n => n.id));
     setNodes(nds => [...nds.filter(n => !selectedIds.has(n.id)), loadingNode]);
     setEdges(eds => eds.filter(e => !selectedIds.has(e.source) && !selectedIds.has(e.target)));
     setSelectedNodes([]);
     
-    await new Promise(r => setTimeout(r, 2000));
-    const mergedResponse = `Summary of ${selectedNodes.length} items:\nThe main themes are market viability and user acquisition. The consensus points towards a niche-first approach.`;
-    setNodes(nds => nds.map(n => n.id === newId ? { ...n, data: { ...n.data, pitch: prompt, response: mergedResponse, isLoading: false } } : n));
+    // This is a placeholder for a real merge API call
+    await new Promise(r => setTimeout(r, 1000));
+    const mergedResponse = `This is a synthesized summary of ${selectedNodes.length} previous analyses. The recurring themes identified are market viability and user acquisition challenges. The consensus points towards prioritizing a niche-first strategy to validate the core value proposition before scaling.`;
+    setNodes(nds => nds.map(n => n.id === newId ? { ...n, data: { ...n.data, pitch: 'Synthesized Analysis', response: mergedResponse, isLoading: false } } : n));
   }, [selectedNodes, setNodes, setEdges]);
 
   const nodesWithHandlers = useMemo(() => nodes.map(n => ({ ...n, data: { ...n.data, onAnalysis: handleStreamingAnalysis, createFollowUpNode } })), [nodes, handleStreamingAnalysis, createFollowUpNode]);
@@ -8472,167 +8676,191 @@ export default function DashboardPage() {
     </ReactFlowProvider>
   );
 }
-// --- FILE: ./src/app/layout.tsx ---
+// --- FILE: ./src/app/(pages)/browse/_components/search-input.tsx ---
 
-import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
-import './globals.css'
-import { ThemeProvider } from '@/components/theme-provider' // <-- Import ThemeProvider
+'use client';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-})
+import { Input } from '@/components/ui/input';
+import { useDebounce } from '@/hooks/use-debounce';
+import { Search } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-})
+export function SearchInput({ placeholder }: { placeholder: string }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get('q') || '';
+  
+  const [value, setValue] = useState(initialQuery);
+  const debouncedValue = useDebounce(value, 500);
 
-export const metadata: Metadata = {
-  title: 'Cassandra',
-  description: 'AI co-pilot for startup founders',
-}
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-        </ThemeProvider>
-      </body>
-    </html>
-  )
-}
-// --- FILE: ./src/app/api/analyze/route.ts ---
-
-// src/app/api/analyze/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
-import prisma from '@/lib/prisma';
-import { generateEmbedding } from '@/lib/embedding';
-
-const kimi = new OpenAI({
-  apiKey: process.env.MOONSHOT_API_KEY,
-  baseURL: 'https://api.moonshot.ai/v1',
-});
-
-// Define a type for the raw query result, now including the source URL
-type FailureCaseResult = {
-  company_name: string;
-  failure_reason: string;
-  summary: string;
-  source_url: string | null; // <-- ADD THIS
-  distance: number;
-};
-
-export async function POST(req: NextRequest) {
-  try {
-    const formData = await req.formData();
-    const pitch = formData.get('pitch') as string;
-    const file = formData.get('file') as File | null;
-
-    if (!pitch && !file) {
-      return new NextResponse(JSON.stringify({ error: 'Pitch or file is required' }), { status: 400 });
-    }
-
-    const contextSections: string[] = [];
-
-    // Agent Step 1: Handle file upload if it exists
-    if (file) {
-      try {
-        //@ts-expect-error
-        const fileObject = await kimi.files.create({ file, purpose: 'file-extract' });
-        const fileContent = await (await kimi.files.content(fileObject.id)).text();
-        if (fileContent) {
-          contextSections.push(`--- Uploaded File Content ---\n${fileContent}`);
-        }
-      } catch (fileError) {
-        console.error('Error handling file upload to Kimi:', fileError);
-        contextSections.push("--- NOTE ---\nFile processing failed, analysis will proceed without file context.");
-      }
-    }
-
-    // Agent Step 2: Retrieve context from vector database
-    const textForEmbedding = pitch || `Analysis of the document named ${file?.name}`;
-    const pitchVector = await generateEmbedding(textForEmbedding);
-    const results: FailureCaseResult[] = await prisma.$queryRaw`
-      SELECT company_name, failure_reason, summary, source_url, -- <-- SELECT source_url
-             VEC_COSINE_DISTANCE(summary_vector, CAST(${JSON.stringify(pitchVector)} AS VECTOR(1536))) as distance
-      FROM startup_failures
-      ORDER BY distance ASC
-      LIMIT 3
-    `;
-
-    // Create a context string that includes the source URL for the AI to reference
-    const dbContext = results
-      .map(row => `- Company: ${row.company_name} (Source: ${row.source_url})\n  Reason for Failure: ${row.failure_reason}\n  Summary: ${row.summary}`)
-      .join('\n\n');
-      
-    if (dbContext) {
-        contextSections.push(`--- Relevant Case Studies ---\n${dbContext}`);
-    }
-
-    const fullContext = contextSections.join('\n\n');
-
-    const systemPrompt = `You are Cassandra, an AI co-pilot for startup founders. Your goal is to identify potential risks by comparing a user's pitch to a database of failed startups and any provided documents. You are critical, insightful, and constructive. Structure your entire response using Markdown. Use headings, bold text, and bullet points.`;
+  useEffect(() => {
+    const current = new URLSearchParams(Array.from(searchParams.entries()));
     
-    // Update the user prompt to explicitly request linked citations
-    const userPrompt = `
-      Here is my startup pitch:
-      "${pitch}"
+    if (!debouncedValue) {
+      current.delete('q');
+    } else {
+      current.set('q', debouncedValue);
+    }
+    // Always reset to page 1 when search query changes
+    current.set('page', '1');
 
-      Analyze my pitch based on the following context.
-      
-      ${fullContext}
-      
-      Based on ALL the context provided, what are the primary risks my venture faces? Provide a concise, critical analysis and suggest potential mitigation strategies.
-      **IMPORTANT**: When you reference a specific case study from the "Relevant Case Studies" section, you MUST cite it as a Markdown link using its provided Source URL. For example: "Similar to the issues faced by [Webvan](https://www.failory.com/cemetery/webvan), you might struggle with logistics."
-    `;
+    const search = current.toString();
+    const query = search ? `?${search}` : '';
 
-    // Agent Step 4: Stream the response from Kimi
-    const stream = await kimi.chat.completions.create({
-      model: 'kimi-k2-turbo-preview',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      stream: true,
-      temperature: 0.6,
-    });
+    router.push(`/browse${query}`);
+  }, [debouncedValue, router, searchParams]);
 
-    const readableStream = new ReadableStream({
-      async start(controller) {
-        for await (const chunk of stream) {
-          const content = chunk.choices[0]?.delta?.content || '';
-          controller.enqueue(new TextEncoder().encode(content));
-        }
-        controller.close();
-      },
-    });
-
-    return new Response(readableStream, {
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-    });
-
-  } catch (error) {
-    console.error('Error in /api/analyze:', error);
-    return new NextResponse(JSON.stringify({ error: 'An internal error occurred' }), { status: 500 });
-  }
+  return (
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <Input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={placeholder}
+        className="pl-10"
+      />
+    </div>
+  );
 }
-// --- FILE: ./src/app/page.tsx ---
+// --- FILE: ./src/app/(pages)/browse/layout.tsx ---
+
+// src/app/browse/layout.tsx
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import Logo from '@/components/Logo';
+
+export default function BrowseLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <nav className="border-b">
+        <div className="container mx-auto px-4 h-14 flex items-center justify-between">
+          <Logo />
+          <Button asChild>
+            <Link href="/dashboard">Back to Canvas</Link>
+          </Button>
+        </div>
+      </nav>
+      <main>{children}</main>
+    </div>
+  );
+}
+// --- FILE: ./src/app/(pages)/browse/page.tsx ---
+
+// src/app/browse/page.tsx
+import prisma from '@/lib/prisma';
+import Link from 'next/link';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge'; // We'll create this simple component
+import { ArrowLeft, ArrowRight, ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { SearchInput } from './_components/search-input'; // We'll create this
+
+const ITEMS_PER_PAGE = 12;
+
+export default async function BrowsePage({
+  searchParams,
+}: {
+  searchParams: { page?: string; q?: string };
+}) {
+  const page = Number(searchParams.page) || 1;
+  const searchQuery = searchParams.q || '';
+
+  const whereClause = searchQuery 
+    ? {
+        OR: [
+          { companyName: { contains: searchQuery, mode: 'insensitive' } },
+          { failureReason: { contains: searchQuery, mode: 'insensitive' } },
+          { keyTakeaway: { contains: searchQuery, mode: 'insensitive' } },
+        ],
+      }
+    : {};
+
+  const failures = await prisma.startupFailure.findMany({
+    where: whereClause,
+    take: ITEMS_PER_PAGE,
+    skip: (page - 1) * ITEMS_PER_PAGE,
+    orderBy: {
+      id: 'desc', // Show most recently added first
+    },
+  });
+
+  const totalCount = await prisma.startupFailure.count({ where: whereClause });
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <header className="mb-8">
+        <h1 className="text-4xl font-bold tracking-tighter">Failure Corpus</h1>
+        <p className="text-muted-foreground mt-2">
+          An browsable archive of {totalCount} startup post-mortems collected by the Cassandra agent.
+        </p>
+      </header>
+
+      <div className="mb-6">
+        <SearchInput placeholder="Search by company, reason, or takeaway..." />
+      </div>
+
+      {failures.length === 0 ? (
+        <div className="text-center py-16">
+          <p className="text-lg text-muted-foreground">No results found for your query.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {failures.map((failure) => (
+            <Card key={failure.id} className="flex flex-col">
+              <CardHeader>
+                <CardTitle className="text-lg">{failure.companyName}</CardTitle>
+                {failure.failureReason && (
+                    <CardDescription>
+                        <Badge variant="secondary">{failure.failureReason}</Badge>
+                    </CardDescription>
+                )}
+              </CardHeader>
+              <CardContent className="flex-grow">
+                <p className="text-sm text-muted-foreground">{failure.keyTakeaway}</p>
+              </CardContent>
+              <CardFooter>
+                {failure.sourceUrl && (
+                  <a
+                    href={failure.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-500 hover:underline flex items-center gap-1"
+                  >
+                    Source <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-center gap-4 mt-12">
+        <Button asChild variant="outline" disabled={page <= 1}>
+          <Link href={`/browse?page=${page - 1}&q=${searchQuery}`}>
+            <ArrowLeft className="h-4 w-4 mr-2" /> Previous
+          </Link>
+        </Button>
+        <span className="text-sm text-muted-foreground">
+          Page {page} of {totalPages}
+        </span>
+        <Button asChild variant="outline" disabled={page >= totalPages}>
+          <Link href={`/browse?page=${page + 1}&q=${searchQuery}`}>
+            Next <ArrowRight className="h-4 w-4 ml-2" />
+          </Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+// --- FILE: ./src/app/(pages)/page.tsx ---
 
 'use client';
 
@@ -9503,6 +9731,212 @@ const LandingPage = ({ className }: PageProps) => {
 export default function Page() {
   return <LandingPage />;
 }
+// --- FILE: ./src/app/layout.tsx ---
+
+import type { Metadata } from 'next'
+import { Geist, Geist_Mono } from 'next/font/google'
+import './globals.css'
+import { ThemeProvider } from '@/components/theme-provider' // <-- Import ThemeProvider
+
+const geistSans = Geist({
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
+})
+
+const geistMono = Geist_Mono({
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
+})
+
+export const metadata: Metadata = {
+  title: 'Cassandra',
+  description: 'AI co-pilot for startup founders',
+}
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
+      </body>
+    </html>
+  )
+}
+// --- FILE: ./src/app/api/analyze/route.ts ---
+
+// --- FILE: src/app/api/analyze/route.ts ---
+
+import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client'; // <-- CORRECT IMPORT: Only the Prisma namespace
+import OpenAI from 'openai';
+import prisma from '@/lib/prisma';
+import { generateEmbedding } from '@/lib/embedding';
+
+const kimi = new OpenAI({
+  apiKey: process.env.MOONSHOT_API_KEY,
+  baseURL: 'https://api.moonshot.ai/v1',
+});
+
+// Define a type for the raw query result
+type FailureCaseResult = {
+  id: number;
+  company_name: string;
+  failure_reason: string;
+  summary: string;
+  source_url: string | null;
+  distance?: number;
+  score?: number;
+};
+
+export async function POST(req: NextRequest) {
+  try {
+    const formData = await req.formData();
+    const pitch = formData.get('pitch') as string;
+    const file = formData.get('file') as File | null;
+    const parentPitch = formData.get('parentPitch') as string | null;
+    const parentAnalysis = formData.get('parentAnalysis') as string | null;
+
+    if (!pitch && !file) {
+      return new NextResponse(JSON.stringify({ error: 'Pitch or file is required' }), { status: 400 });
+    }
+
+    const contextSections: string[] = [];
+
+    // Agent Step 0: Handle conversational context
+    if (parentPitch) {
+      let parentContext = `--- Previous Context ---\nPrevious Pitch: "${parentPitch}"`;
+      if (parentAnalysis) {
+        parentContext += `\n\nPrevious Analysis:\n${parentAnalysis}`;
+      }
+      contextSections.push(parentContext);
+    }
+
+    // Agent Step 1: Handle file upload
+    if (file) {
+      try {
+        const fileContent = await file.text();
+        if (fileContent) {
+          contextSections.push(`--- Uploaded File Content ---\n${fileContent.substring(0, 5000)}...`);
+        }
+      } catch (fileError) {
+        console.error('Error reading file content:', fileError);
+        contextSections.push("--- NOTE ---\nFile processing failed, analysis will proceed without file context.");
+      }
+    }
+
+    // Agent Step 2: HYBRID SEARCH from vector database
+    const textForEmbedding = pitch || `Analysis of the document named ${file?.name}`;
+    
+    // Query 1: Vector Search (for conceptual similarity)
+    const pitchVector = await generateEmbedding(textForEmbedding);
+    const vectorSearchPromise = prisma.$queryRaw<FailureCaseResult[]>`
+      SELECT id, company_name, failure_reason, summary, source_url,
+             VEC_COSINE_DISTANCE(summary_vector, CAST(${JSON.stringify(pitchVector)} AS VECTOR(1536))) as distance
+      FROM startup_failures
+      ORDER BY distance ASC
+      LIMIT 3
+    `;
+
+    // Query 2: Full-Text Search (for factual/keyword similarity)
+    // <-- CORRECT USAGE: Using the namespaced Prisma.sql helper
+    const fullTextSearchPromise = prisma.$queryRaw`
+        SELECT id, company_name, failure_reason, summary, source_url,
+               MATCH(companyName, failureReason, summary, whatWentWrong) AGAINST(${pitch} IN NATURAL LANGUAGE MODE) as score
+        FROM startup_failures 
+        WHERE MATCH(companyName, failureReason, summary, whatWentWrong) AGAINST(${pitch} IN NATURAL LANGUAGE MODE)
+        ORDER BY score DESC 
+        LIMIT 3
+      `
+
+    // Execute both queries in parallel
+    const [vectorResults, textResults]: any = await Promise.all([vectorSearchPromise, fullTextSearchPromise]);
+
+    // Combine and de-duplicate the results
+    const combinedResults = new Map<number, FailureCaseResult>();
+    [...vectorResults, ...textResults].forEach(res => {
+      if (!combinedResults.has(res.id)) {
+        combinedResults.set(res.id, res);
+      }
+    });
+    
+    const dbContext = Array.from(combinedResults.values())
+      .map(row => `- Company: ${row.company_name} (Source: ${row.source_url || '#no-source'})\n  Reason for Failure: ${row.failure_reason}\n  Summary: ${row.summary}`)
+      .join('\n\n');
+      
+    if (dbContext) {
+        contextSections.push(`--- Relevant Case Studies (from Hybrid Search) ---\n${dbContext}`);
+    }
+
+    const fullContext = contextSections.join('\n\n');
+
+    // Agent Step 3: Construct the enhanced, structured prompt
+    const systemPrompt = `You are Cassandra, an AI co-pilot for startup founders. Your goal is to identify potential risks by comparing a user's pitch to a database of failed startups and any provided documents. You are critical, insightful, and constructive.`;
+    
+    const userPrompt = `Based on my pitch and the provided context, perform a critical risk analysis.
+
+      **My Pitch:**
+      "${pitch}"
+
+      **Context for your analysis:**
+      ${fullContext}
+      
+      **Your Task:**
+      1.  **First, you MUST output a valid JSON object.** This object must have a single key "risk_analysis" which is an array of objects. Each object in the array represents a single, primary risk and MUST have three keys:
+          - "risk_name": A short, descriptive name for the risk (e.g., "Market Saturation", "User Retention Issues").
+          - "score": An integer from 1 to 10, where 10 is the highest possible risk.
+          - "summary": A one-sentence summary of the risk and a potential mitigation.
+      2.  **After the JSON object, add a "---" separator.**
+      3.  **After the separator, provide your full, detailed analysis in Markdown.** Elaborate on the risks you identified. Use headings, bold text, and bullet points for clarity.
+      
+      **IMPORTANT RULES for the Markdown analysis:**
+      - When you reference a specific case study from the "Relevant Case Studies" section, you MUST cite it as a Markdown link using its provided Source URL. For example: "Similar to the issues faced by [Webvan](https://www.failory.com/cemetery/webvan), you might struggle with logistics."
+      - Be direct and constructive. Don't just list problems; suggest actionable next steps or questions the founder should answer.
+    `;
+
+    // Agent Step 4: Stream the response from Kimi
+    const stream = await kimi.chat.completions.create({
+      model: 'kimi-k2-turbo-preview',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      stream: true,
+      temperature: 0.5,
+    });
+
+    const readableStream = new ReadableStream({
+      async start(controller) {
+        for await (const chunk of stream) {
+          const content = chunk.choices[0]?.delta?.content || '';
+          controller.enqueue(new TextEncoder().encode(content));
+        }
+        controller.close();
+      },
+    });
+
+    return new Response(readableStream, {
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    });
+
+  } catch (error) {
+    console.error('Error in /api/analyze:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    return new NextResponse(JSON.stringify({ error: 'An internal error occurred', details: errorMessage }), { status: 500 });
+  }
+}
 // --- FILE: ./src/app/globals.css ---
 
 @import "tailwindcss";
@@ -9601,6 +10035,101 @@ import { type ThemeProviderProps } from 'next-themes'
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   return <NextThemesProvider {...props}>{children}</NextThemesProvider>
 }
+// --- FILE: ./src/components/ui/card.tsx ---
+
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+function Card({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card"
+      className={cn(
+        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-header"
+      className={cn(
+        "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-title"
+      className={cn("leading-none font-semibold", className)}
+      {...props}
+    />
+  )
+}
+
+function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-description"
+      className={cn("text-muted-foreground text-sm", className)}
+      {...props}
+    />
+  )
+}
+
+function CardAction({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-action"
+      className={cn(
+        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardContent({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-content"
+      className={cn("px-6", className)}
+      {...props}
+    />
+  )
+}
+
+function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-footer"
+      className={cn("flex items-center px-6 [.border-t]:pt-6", className)}
+      {...props}
+    />
+  )
+}
+
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardAction,
+  CardDescription,
+  CardContent,
+}
+
 // --- FILE: ./src/components/ui/sheet.tsx ---
 
 "use client"
@@ -9923,6 +10452,55 @@ function AvatarFallback({
 }
 
 export { Avatar, AvatarImage, AvatarFallback }
+
+// --- FILE: ./src/components/ui/badge.tsx ---
+
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "@/lib/utils"
+
+const badgeVariants = cva(
+  "inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden",
+  {
+    variants: {
+      variant: {
+        default:
+          "border-transparent bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
+        secondary:
+          "border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
+        destructive:
+          "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+        outline:
+          "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+function Badge({
+  className,
+  variant,
+  asChild = false,
+  ...props
+}: React.ComponentProps<"span"> &
+  VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
+  const Comp = asChild ? Slot : "span"
+
+  return (
+    <Comp
+      data-slot="badge"
+      className={cn(badgeVariants({ variant }), className)}
+      {...props}
+    />
+  )
+}
+
+export { Badge, badgeVariants }
 
 // --- FILE: ./src/components/ui/separator.tsx ---
 
@@ -10298,64 +10876,110 @@ function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
 
 export { Textarea }
 
+// --- FILE: ./src/components/ui/input.tsx ---
+
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+  return (
+    <input
+      type={type}
+      data-slot="input"
+      className={cn(
+        "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+        "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Input }
+
 // --- FILE: ./src/components/PitchNode.tsx ---
 
+// --- FILE: src/components/PitchNode.tsx ---
 "use client";
 
 import React, { useState, useEffect, useRef, FC } from 'react';
 import Image from 'next/image';
-import { Handle, Position, Node, NodeProps } from 'reactflow';
+import { Handle, Position, NodeProps } from 'reactflow';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
-import { ArrowRight, Plus, Loader2, SendHorizonal, Paperclip, X, Mic } from 'lucide-react';
+import { ArrowRight, Plus, Loader2, SendHorizonal, Paperclip, X, Mic, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAudioInput } from '@/hooks/use-audio-input';
+import { PitchNodeData, Risk } from './DashboardContext';
 
-// --- NEW: Custom renderer for Markdown links to show favicons ---
+// --- Custom renderer for Markdown links to show favicons ---
 const MarkdownLinkRenderer: FC<React.PropsWithChildren<any>> = ({ href, children }) => {
   try {
     const hostname = new URL(href).hostname;
-    // Use a public favicon service for simplicity and to avoid CORS issues.
     const faviconUrl = `https://www.google.com/s2/favicons?sz=32&domain_url=${hostname}`;
-
     return (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 not-prose font-medium hover:underline decoration-amber-500/50"
-      >
-        <Image 
-          src={faviconUrl} 
-          alt={`${hostname} favicon`} 
-          width={16} 
-          height={16} 
-          className="flex-shrink-0 rounded-sm" 
-          unoptimized // Recommended for external, dynamic URLs
-        />
+      <a href={href} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 not-prose font-medium hover:underline decoration-amber-500/50">
+        <Image src={faviconUrl} alt={`${hostname} favicon`} width={16} height={16} className="flex-shrink-0 rounded-sm" unoptimized />
         <span>{children}</span>
       </a>
     );
   } catch (error) {
-    // Fallback for invalid URLs (e.g., relative links)
     return <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
   }
 };
 
-interface PitchNodeData {
-  pitch: string;
-  response?: string | null;
-  isLoading: boolean;
-  contextTitle?: string;
-  onAnalysis: (nodeId: string, pitch: string, file: File | null) => void;
-  createFollowUpNode: (text: string, sourceId: string) => void;
-}
+// --- NEW: Risk Scorecard Component ---
+const RiskScorecard: FC<{ analysis: { risk_analysis: Risk[] } }> = ({ analysis }) => {
+  if (!analysis?.risk_analysis?.length) return null;
+
+  const getRiskColor = (score: number) => {
+    if (score >= 8) return 'bg-red-500';
+    if (score >= 5) return 'bg-amber-500';
+    return 'bg-green-500';
+  };
+
+  return (
+    <div className="space-y-4 my-4">
+      <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
+        <AlertTriangle className="h-4 w-4 text-amber-500" />
+        Primary Risks Identified
+      </h3>
+      <div className="space-y-3">
+        {analysis.risk_analysis.map((risk, index) => (
+          <motion.div
+            key={risk.risk_name}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: index * 0.1 }}
+            className="text-xs"
+          >
+            <div className="flex justify-between items-center mb-1">
+              <span className="font-medium text-zinc-700 dark:text-zinc-300">{risk.risk_name}</span>
+              <span className="font-semibold text-zinc-800 dark:text-zinc-200">{risk.score}/10</span>
+            </div>
+            <div className="w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-1.5">
+              <div
+                className={cn("h-1.5 rounded-full", getRiskColor(risk.score))}
+                style={{ width: `${risk.score * 10}%` }}
+              />
+            </div>
+            <p className="text-zinc-500 dark:text-zinc-400 mt-1.5">{risk.summary}</p>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 
 const PitchNode: React.FC<NodeProps<PitchNodeData>> = (node) => {
   const { id, data } = node;
   const [currentPitch, setCurrentPitch] = useState(data.pitch || '');
   const [file, setFile] = useState<File | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(!data.pitch);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -10368,7 +10992,9 @@ const PitchNode: React.FC<NodeProps<PitchNodeData>> = (node) => {
 
   useEffect(() => {
     setCurrentPitch(data.pitch || '');
-  }, [data.pitch]);
+    if (data.pitch) setIsEditing(!!data.pitch && !data.response);
+  }, [data.pitch, data.response]);
+
 
   useEffect(() => {
     if (textAreaRef.current) {
@@ -10378,15 +11004,11 @@ const PitchNode: React.FC<NodeProps<PitchNodeData>> = (node) => {
   }, [currentPitch, data.response]);
 
   useEffect(() => {
-    if (isEditing) {
-      textAreaRef.current?.focus();
-    }
+    if (isEditing) textAreaRef.current?.focus();
   }, [isEditing]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      setFile(event.target.files[0]);
-    }
+    if (event.target.files && event.target.files[0]) setFile(event.target.files[0]);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -10398,7 +11020,7 @@ const PitchNode: React.FC<NodeProps<PitchNodeData>> = (node) => {
   };
 
   const isAnalysisComplete = !data.isLoading && data.response && data.response.length > 0;
-  const hasAnalysisStarted = data.isLoading || !!data.response;
+  const hasAnalysisStarted = data.isLoading || !!data.response || !!data.structuredResponse;
 
   return (
     <motion.div
@@ -10460,24 +11082,14 @@ const PitchNode: React.FC<NodeProps<PitchNodeData>> = (node) => {
                 <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 rounded-full text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700" title="Attach File">
                   <Paperclip size={16}/>
                 </button>
-                <button
-                  type="button"
-                  onClick={toggleListening}
-                  className={cn(
-                    "p-2 rounded-full transition-colors",
-                    isListening ? "bg-red-500/20 text-red-500 animate-pulse" : "text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                  )}
-                  title="Record Audio"
-                >
+                <button type="button" onClick={toggleListening} className={cn("p-2 rounded-full transition-colors", isListening ? "bg-red-500/20 text-red-500 animate-pulse" : "text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700")} title="Record Audio">
                     <Mic size={16} />
                 </button>
                 {file && (
                   <div className="flex items-center gap-2 text-xs bg-zinc-100 dark:bg-zinc-800 rounded-full px-3 py-1 w-fit animate-in fade-in-50">
                     <Paperclip size={12} className="text-zinc-500"/>
                     <span className="text-zinc-700 dark:text-zinc-300 max-w-48 truncate">{file.name}</span>
-                    <button type="button" onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="ml-1 p-0.5 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700">
-                      <X size={12}/>
-                    </button>
+                    <button type="button" onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="ml-1 p-0.5 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700"><X size={12}/></button>
                   </div>
                 )}
               </div>
@@ -10488,17 +11100,20 @@ const PitchNode: React.FC<NodeProps<PitchNodeData>> = (node) => {
 
         {hasAnalysisStarted && (
             <div className="pt-4 border-t border-zinc-200 dark:border-zinc-700">
-                {data.isLoading && !data.response && (
+                {data.isLoading && !data.response && !data.structuredResponse && (
                     <div className="flex items-center gap-2 text-zinc-500">
                       <Loader2 size={16} className="animate-spin" />
                       <span>Analyzing...</span>
                     </div>
                 )}
+                
+                {data.structuredResponse && <RiskScorecard analysis={data.structuredResponse} />}
+                
                 <div className="prose prose-sm dark:prose-invert prose-p:text-zinc-700 dark:prose-p:text-zinc-300 prose-headings:text-zinc-800 dark:prose-headings:text-zinc-200 prose-strong:text-zinc-800 dark:prose-strong:text-zinc-200 prose-a:text-amber-600 dark:prose-a:text-amber-400 selection:bg-amber-500/30">
                   <ReactMarkdown components={{ a: MarkdownLinkRenderer }}>
                     {data.response || ''}
                   </ReactMarkdown>
-                  {data.isLoading && data.response && <span className="inline-block w-2 h-4 bg-zinc-500 animate-pulse ml-1 rounded-sm" />}
+                  {data.isLoading && (data.response || data.structuredResponse) && <span className="inline-block w-2 h-4 bg-zinc-500 animate-pulse ml-1 rounded-sm" />}
                 </div>
             </div>
         )}
@@ -10508,7 +11123,7 @@ const PitchNode: React.FC<NodeProps<PitchNodeData>> = (node) => {
         <AnimatePresence>
             {isAnalysisComplete && (
                 <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-center p-2">
-                    <button onClick={() => data.createFollowUpNode("New follow-up...", id)} className="p-2 rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all hover:scale-110 active:scale-95" title="Branch Idea">
+                    <button onClick={() => data.createFollowUpNode("Drill down on this risk...", id)} className="p-2 rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all hover:scale-110 active:scale-95" title="Branch Idea">
                         <Plus size={20} />
                     </button>
                 </motion.div>
@@ -10551,43 +11166,6 @@ export const CassandraLogo: React.FC<CassandraLogoProps> = ({ className, ...prop
 };
 
 export default CassandraLogo;
-// --- FILE: ./src/components/KimiLogo.tsx ---
-
-// src/components/KimiLogo.tsx
-import React from 'react';
-import { cn } from '@/lib/utils';
-
-const KimiLogo = ({ className }: { className?: string }) => {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={cn('h-4 w-4', className)}
-    >
-      <path
-        d="M12 2.5C17.2467 2.5 21.5 6.75329 21.5 12C21.5 17.2467 17.2467 21.5 12 21.5C6.75329 21.5 2.5 17.2467 2.5 12C2.5 9.03362 3.90384 6.42511 6.00937 4.75"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M12 5.5C15.5899 5.5 18.5 8.41015 18.5 12C18.5 15.5899 15.5899 18.5 12 18.5C8.41015 18.5 5.5 15.5899 5.5 12C5.5 10.0116 6.55163 8.26189 8.12598 7.25"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M12 8.5C13.933 8.5 15.5 10.067 15.5 12C15.5 13.933 13.933 15.5 12 15.5C10.067 15.5 8.5 13.933 8.5 12C8.5 11.2308 8.73033 10.5116 9.12423 9.91357"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-};
-
-export default KimiLogo;
 // --- FILE: ./src/components/ThemeToggle.tsx ---
 
 // src/components/ThemeToggle.tsx
@@ -10684,6 +11262,7 @@ export const Logo: React.FC<LogoProps> = ({ className, hideText = false }) => {
 export default Logo;
 // --- FILE: ./src/components/DashboardContext.tsx ---
 
+// --- FILE: src/components/DashboardContext.tsx ---
 "use client";
 
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
@@ -10692,13 +11271,41 @@ import { useDebounce } from '@/hooks/use-debounce';
 
 const LOCAL_STORAGE_KEY = 'cassandra-sessions-v2';
 
-export interface Session { id: string; name: string; createdAt: number; nodes: Node[]; edges: Edge[]; }
+// --- NEW TYPES FOR STRUCTURED RISK DATA ---
+export interface Risk {
+  risk_name: string;
+  score: number;
+  summary: string;
+}
+
+export interface PitchNodeData {
+  pitch: string;
+  response?: string | null;
+  structuredResponse?: { risk_analysis: Risk[] } | null; // <-- ADDED: For risk scorecard data
+  isLoading: boolean;
+  contextTitle?: string;
+  // These function types are simplified for context definition; their implementation is in the page
+  onAnalysis: (nodeId: string, pitch: string, file: File | null) => void;
+  createFollowUpNode: (text: string, sourceId: string) => void;
+}
+
+// Define a specific Node type for our app
+export type CassandraNode = Node<PitchNodeData>;
+// --- END OF NEW TYPES ---
+
+export interface Session { 
+  id: string; 
+  name: string; 
+  createdAt: number; 
+  nodes: CassandraNode[]; // Use the specific node type
+  edges: Edge[]; 
+}
 
 interface DashboardContextType {
   sessions: { [id: string]: Session };
   activeSessionId: string | null;
-  nodes: Node[];
-  setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
+  nodes: CassandraNode[]; // Use the specific node type
+  setNodes: React.Dispatch<React.SetStateAction<CassandraNode[]>>;
   edges: Edge[];
   setEdges: React.Dispatch<React.SetStateAction<Edge[]>>;
   loadSession: (id: string) => void;
@@ -10719,13 +11326,17 @@ export const useDashboard = () => {
 export const DashboardProvider = ({ children }: { children: ReactNode }) => {
   const [sessions, setSessions] = useState<{ [id: string]: Session }>({});
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [nodes, setNodes] = useState<Node[]>([]);
+  const [nodes, setNodes] = useState<CassandraNode[]>([]); // Use the specific node type
   const [edges, setEdges] = useState<Edge[]>([]);
 
   const debouncedNodes = useDebounce(nodes, 500);
   const debouncedEdges = useDebounce(edges, 500);
   
+  // The rest of this component is identical to your original version
   useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const pitchFromUrl = searchParams.get('pitch');
+    
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
     const allSessions = saved ? JSON.parse(saved) : {};
     
@@ -10736,6 +11347,23 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
         return acc;
     }, {} as { [id: string]: Session });
 
+    if (pitchFromUrl) {
+      const decodedPitch = decodeURIComponent(pitchFromUrl);
+      const id = `s_${Date.now()}`;
+      const initialNodes: CassandraNode[] = [{ id: '1', type: 'pitchNode', position: { x: 250, y: 100 }, data: { pitch: decodedPitch, response: null, isLoading: false, onAnalysis: () => {}, createFollowUpNode: () => {} }, }];
+      const sessionName = decodedPitch.substring(0, 40).trim() || "Untitled Session";
+      const newSessionData: Session = { id, name: sessionName, createdAt: Date.now(), nodes: initialNodes, edges: [] };
+
+      const updatedSessions = { ...validSessions, [id]: newSessionData };
+      setNodes(newSessionData.nodes);
+      setEdges(newSessionData.edges);
+      setActiveSessionId(id);
+      setSessions(updatedSessions);
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedSessions));
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+
     const recentId = Object.values(validSessions).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0]?.id;
 
     if (recentId) {
@@ -10745,7 +11373,7 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
       setActiveSessionId(recentId);
     } else {
       const id = `s_${Date.now()}`;
-      const initialNodes: Node[] = [{ id: '1', type: 'pitchNode', position: { x: 250, y: 100 }, data: { pitch: '', response: null, isLoading: false }, }];
+      const initialNodes: CassandraNode[] = [{ id: '1', type: 'pitchNode', position: { x: 250, y: 100 }, data: { pitch: '', response: null, isLoading: false, onAnalysis: () => {}, createFollowUpNode: () => {} }, }];
       const newSessionData: Session = { id, name: 'New Session', createdAt: Date.now(), nodes: initialNodes, edges: [] };
       const updatedSessions = { ...validSessions, [id]: newSessionData };
       setNodes(newSessionData.nodes);
@@ -10757,7 +11385,7 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
     setSessions(validSessions);
   }, []);
 
-  const saveSession = useCallback((currentNodes: Node[], currentEdges: Edge[], sessionId: string | null) => {
+  const saveSession = useCallback((currentNodes: CassandraNode[], currentEdges: Edge[], sessionId: string | null) => {
     if (!sessionId) return;
     setSessions(prevSessions => {
       if (!prevSessions[sessionId]) { return prevSessions; }
@@ -10773,7 +11401,7 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (activeSessionId && (debouncedNodes.length > 0 || debouncedEdges.length > 0)) {
+    if (activeSessionId) {
       saveSession(debouncedNodes, debouncedEdges, activeSessionId);
     }
   }, [debouncedNodes, debouncedEdges, activeSessionId, saveSession]);
@@ -10791,17 +11419,18 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
 
   const newSession = useCallback(() => {
     const id = `s_${Date.now()}`;
-    const initialNodes: Node[] = [{ id: '1', type: 'pitchNode', position: { x: 250, y: 100 }, data: { pitch: '', response: null, isLoading: false }, }];
+    const initialNodes: CassandraNode[] = [{ id: '1', type: 'pitchNode', position: { x: 250, y: 100 }, data: { pitch: '', response: null, isLoading: false, onAnalysis: () => {}, createFollowUpNode: () => {} }, }];
     const newSessionData: Session = { id, name: 'New Session', createdAt: Date.now(), nodes: initialNodes, edges: [] };
     
     setNodes(newSessionData.nodes);
     setEdges(newSessionData.edges);
     setActiveSessionId(id);
     
-    setSessions(prevSessions => ({
-      ...prevSessions,
-      [id]: newSessionData
-    }));
+    setSessions(prevSessions => {
+      const updatedSessions = { ...prevSessions, [id]: newSessionData };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedSessions));
+      return updatedSessions;
+    });
   }, []);
   
   const deleteSession = useCallback((id: string) => {
@@ -10818,14 +11447,15 @@ export const DashboardProvider = ({ children }: { children: ReactNode }) => {
           setActiveSessionId(nextSessionToLoad.id);
         } else {
           const newId = `s_${Date.now()}`;
-          const initialNodes: Node[] = [{ id: '1', type: 'pitchNode', position: { x: 250, y: 100 }, data: { pitch: '', response: null, isLoading: false }, }];
+          const initialNodes: CassandraNode[] = [{ id: '1', type: 'pitchNode', position: { x: 250, y: 100 }, data: { pitch: '', response: null, isLoading: false, onAnalysis: () => {}, createFollowUpNode: () => {} }, }];
           const newSessionData: Session = { id: newId, name: 'New Session', createdAt: Date.now(), nodes: initialNodes, edges: [] };
           
           setNodes(newSessionData.nodes);
           setEdges(newSessionData.edges);
           setActiveSessionId(newSessionData.id);
-          
-          return { [newId]: newSessionData };
+          const finalSessions = { [newId]: newSessionData };
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(finalSessions));
+          return finalSessions;
         }
       }
       return remainingSessions;
@@ -11094,261 +11724,61 @@ export const generateEmbedding = async (text: string): Promise<number[]> => {
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }
-# Cassandra Research Agent 
 
-An autonomous AI research agent that continuously discovers, analyzes, and catalogues startup failure stories from across the web. Named after Cassandra of Troy, who could see the future but was cursed to never be believed - this agent helps entrepreneurs learn from the past to avoid repeating it.
+// --- FILE: prisma/schema.prisma ---
 
-## 🎯 What It Does
-
-The Cassandra Agent operates as a **self-expanding research system** that:
-
-### 1. **Intelligent Web Discovery**
-- Starts with seed topics about startup failures and post-mortems
-- Uses advanced web search to find relevant articles, blog posts, and reports
-- Dynamically generates new search queries based on discovered patterns
-- Maintains a "research frontier" of unexplored topics
-
-### 2. **AI-Powered Analysis**
-- Extracts detailed failure stories from web content using Google Gemini
-- Identifies specific companies, failure reasons, and key takeaways
-- Categorizes failures by type (product-market fit, funding, execution, etc.)
-- Preserves source URLs for verification and deeper research
-
-### 3. **Semantic Knowledge Base**
-- Stores findings in TiDB with vector embeddings for semantic search
-- Prevents duplicate entries while building comprehensive coverage
-- Creates structured data from unstructured web content
-- Enables similarity-based discovery of related failure patterns
-
-### 4. **Autonomous Operation**
-- Runs continuously without human intervention
-- Self-expands research scope based on discoveries
-- Manages rate limits and API quotas intelligently
-- Handles errors and connection issues gracefully
-
-## 🏗️ Architecture
-
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
-│   Web Search    │───▶│   AI Analysis    │───▶│   Vector Storage    │
-│   (Tavily)      │    │   (Gemini Pro)   │    │     (TiDB)          │
-└─────────────────┘    └──────────────────┘    └─────────────────────┘
-         ▲                       │                        │
-         │                       ▼                        │
-┌─────────────────┐    ┌──────────────────┐               │
-│ Query Generator │◀───│ Pattern Analysis │◀──────────────┘
-│   (Gemini)      │    │   (Discovery)    │
-└─────────────────┘    └──────────────────┘
-```
-
-## 📊 Data Schema
-
-Each discovered startup failure includes:
-
-```json
-{
-  "company_name": "string",
-  "failure_reason_category": "string", 
-  "what_they_did": "string",
-  "what_went_wrong": "string", 
-  "key_takeaway": "string",
-  "source_url": "string",
-  "summary_vector": "float[]"
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+  engineType      = "wasm"
 }
-```
 
-## 🚀 Getting Started
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
 
-### Prerequisites
+// Model for the startup failure data
+model StartupFailure {
+  id              Int     @id @default(autoincrement())
+  companyName     String  @map("company_name")
+  
+  failureReason   String? @db.Text @map("failure_reason")
+  summary         String? @db.Text
+  whatTheyDid     String? @db.Text @map("what_they_did")
+  whatWentWrong   String? @db.Text @map("what_went_wrong")
+  keyTakeaway     String? @db.Text @map("key_takeaway")
 
-- Python 3.9+
-- TiDB database (local or cloud)
-- API keys for:
-  - Google AI (Gemini)
-  - Tavily Search
-  - OpenAI (for embeddings)
+  sourceUrl       String? @map("sourceUrl") @db.VarChar(1000) // Good practice to limit URL length
+  summary_vector  Json?
 
-### Installation
+  @@fulltext([companyName, failureReason, summary, whatWentWrong])
+  @@map("startup_failures")
+}
 
-```bash
-# Clone and setup
-git clone <repository>
-cd cassandra-agent
-uv venv
-source .venv/bin/activate
-uv pip install -r requirements.txt
-```
+model SearchFrontier {
+  id        Int      @id @default(autoincrement())
+  query     String   @unique
+  status    Status   @default(pending)
+  createdAt DateTime @default(now()) @map("created_at")
 
-### Configuration
+  @@map("search_frontier")
+}
 
-Create `.env` file:
+// --- ENUM FOR THE STATUS FIELD ---
+enum Status {
+  pending
+  completed
+  failed
+}
+// --- FILE: .env.example ---
 
-```env
-# Database
-TIDB_HOST=your-tidb-host
-TIDB_PORT=4000
-TIDB_USER=your-username
-TIDB_PASSWORD=your-password
-TIDB_DATABASE=your-database
+MOONSHOT_API_KEY=
 
-# API Keys
-GOOGLE_API_KEY=your-gemini-key
-TAVILY_API_KEY=your-tavily-key
-OPENAI_API_KEY=your-openai-key
-```
+DATABASE_URL=
 
-### Database Setup
-
-```sql
--- Create tables
-CREATE TABLE search_frontier (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    query VARCHAR(500) UNIQUE,
-    status ENUM('pending', 'completed') DEFAULT 'pending',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE startup_failures (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    company_name VARCHAR(255),
-    failure_reason VARCHAR(500),
-    summary TEXT,
-    what_they_did TEXT,
-    what_went_wrong TEXT,
-    key_takeaway TEXT,
-    sourceUrl VARCHAR(1000),
-    summary_vector JSON,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX(company_name)
-);
-```
-
-### Running the Agent
-
-```bash
-uv run main.py
-```
-
-## 🎛️ Configuration Options
-
-```python
-# Agent Parameters
-RESEARCH_ITERATIONS = 10    # Max research cycles
-BATCH_SIZE = 5             # Queries per iteration
-SEMAPHORE = asyncio.Semaphore(5)  # Concurrent operations limit
-
-# Seed topics - customize for your research focus
-SEED_TOPICS = [
-    "Y Combinator startup post-mortems",
-    "TechCrunch deadpool analysis",
-    "CB Insights startup failure reports",
-    # Add your own topics...
-]
-```
-
-## 📈 Sample Output
-
-```
---- Starting Cassandra Industrial Research Agent ---
-🌱 Seeding the research frontier...
-✅ Frontier seeded.
-
---- 🔄 Starting Research Iteration 1/10 ---
-  -> Analyzing (Pro): Y Combinator startup post-mortems
-  -> Found 12 potential cases. Loading new ones into TiDB...
-    -> ✅ Stored: Homejoy (from https://techcrunch.com/...)
-    -> ✅ Stored: Zirtual (from https://medium.com/...)
-  -> Stored 8 new startups. Total in DB: 8
-
-🧠 Expanding frontier with new search queries...
-✅ Added 5 new queries to the frontier.
-```
-
-## 🔍 What You'll Discover
-
-The agent typically finds:
-
-- **Product-Market Fit Failures**: Companies that built something nobody wanted
-- **Funding & Cash Flow Issues**: Startups that ran out of money
-- **Execution Problems**: Good ideas, poor implementation
-- **Market Timing**: Too early or too late to market
-- **Team Dynamics**: Co-founder conflicts and leadership issues
-- **Competition**: Outmaneuvered by larger players
-- **Pivot Failures**: Unsuccessful attempts to change direction
-
-## 🛡️ Features
-
-### Intelligent Deduplication
-- Prevents storing the same company multiple times
-- Uses fuzzy matching on company names
-- Maintains data quality and uniqueness
-
-### Source Attribution
-- Every failure story includes its source URL
-- Enables fact-checking and deeper research
-- Maintains transparency and credibility
-
-### Semantic Search Ready
-- Vector embeddings enable "find similar failures"
-- Can discover patterns across different industries
-- Supports building recommendation systems
-
-### Fault Tolerant
-- Handles API rate limits gracefully
-- Recovers from network errors
-- Manages database connection pooling
-- Logs errors without stopping the research
-
-## 📚 Use Cases
-
-### For Entrepreneurs
-- Learn from others' mistakes before making your own
-- Identify common failure patterns in your industry
-- Validate assumptions against historical data
-
-### For Investors
-- Due diligence research on market risks
-- Pattern recognition for investment decisions
-- Portfolio company risk assessment
-
-### For Researchers
-- Academic studies on entrepreneurship
-- Failure pattern analysis across industries
-- Building predictive models for startup success
-
-### For Content Creators
-- Rich source material for articles and videos
-- Data-driven insights on startup ecosystems
-- Trend analysis and market intelligence
-
-## 🔮 Future Enhancements
-
-- **Industry Classification**: Auto-categorize failures by sector
-- **Timeline Analysis**: Track failure patterns over time
-- **Sentiment Analysis**: Measure emotional tone of failure stories
-- **Network Effects**: Map connections between failed startups
-- **Predictive Modeling**: Early warning systems for current startups
-
-## ⚠️ Limitations
-
-- **Data Quality**: Dependent on publicly available information
-- **Bias**: May overrepresent well-documented failures
-- **Recency**: Some historical failures may be under-represented
-- **Attribution**: Source quality varies across the web
-
-## 🤝 Contributing
-
-This agent is designed to be extensible:
-
-1. **Add New Sources**: Modify search strategies for specific data sources
-2. **Improve Analysis**: Enhance the AI prompts for better extraction
-3. **New Categories**: Add failure classification categories
-4. **Export Features**: Build dashboards and reporting tools
-
-*"Those who cannot remember the past are condemned to repeat it."* - George Santayana
-
-Let Cassandra help you learn from the futures that never were.
-
+OPENAI_API_KEY=
+// --- FILE: ./data-agent/main.py ---
 
 import os
 import asyncio
@@ -11361,6 +11791,7 @@ from tavily import TavilyClient
 import mysql.connector.aio
 from mysql.connector.aio import pooling
 from dotenv import load_dotenv
+import certifi
 
 # --- Configuration ---
 load_dotenv()
@@ -11368,10 +11799,42 @@ genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 tidb_config = {
-    'host': os.getenv('TIDB_HOST'), 'port': int(os.getenv('TIDB_PORT', 4000)),
-    'user': os.getenv('TIDB_USER'), 'password': os.getenv('TIDB_PASSWORD'),
-    'database': os.getenv('TIDB_DATABASE'), 'ssl_verify_cert': True, 'ssl_verify_identity': True,
+    'host': os.getenv('TIDB_HOST'),
+    'port': int(os.getenv('TIDB_PORT', 4000)),
+    'user': os.getenv('TIDB_USER'),
+    'password': os.getenv('TIDB_PASSWORD'),
+    'database': os.getenv('TIDB_DATABASE'),
+    'ssl_ca': "/etc/ssl/cert.pem",
+    'ssl_verify_cert': True,
+    'ssl_verify_identity': True,
 }
+
+connection = None
+try:
+    # Use the SYNCHRONOUS connector for a clearer error message
+    connection = mysql.connector.connect(**tidb_config)
+    
+    if connection.is_connected():
+        print("\n✅✅✅ SUCCESS: Database connection established! ✅✅✅")
+        cursor = connection.cursor()
+        cursor.execute("SELECT VERSION();")
+        record = cursor.fetchone()
+        print(f"Database version: {record[0]}")
+        cursor.close()
+    else:
+        print("\n❌❌❌ FAILURE: Connection object created, but not connected. ❌❌❌")
+
+except mysql.connector.Error as err:
+    print(f"\n❌❌❌ FAILURE: A mysql.connector error occurred: {err} ❌❌❌")
+    print("--- DEBUGGING CHECKLIST ---")
+    print("1. Is your IP address whitelisted in the TiDB Cloud console?")
+    print("2. Are the HOST, USER, and PASSWORD in your .env file 100% correct (no typos, no extra spaces)?")
+    print("3. Is your cluster 'Available' and not 'Paused' or 'Creating'?")
+
+finally:
+    if connection and connection.is_connected():
+        connection.close()
+        print("\nConnection closed.")
 
 # --- Agent Parameters ---
 RESEARCH_ITERATIONS = 10
@@ -11685,5 +12148,259 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+// --- FILE: ./data-agent/README.md ---
 
+# Cassandra Research Agent 
 
+An autonomous AI research agent that continuously discovers, analyzes, and catalogues startup failure stories from across the web. Named after Cassandra of Troy, who could see the future but was cursed to never be believed - this agent helps entrepreneurs learn from the past to avoid repeating it.
+
+## 🎯 What It Does
+
+The Cassandra Agent operates as a **self-expanding research system** that:
+
+### 1. **Intelligent Web Discovery**
+- Starts with seed topics about startup failures and post-mortems
+- Uses advanced web search to find relevant articles, blog posts, and reports
+- Dynamically generates new search queries based on discovered patterns
+- Maintains a "research frontier" of unexplored topics
+
+### 2. **AI-Powered Analysis**
+- Extracts detailed failure stories from web content using Google Gemini
+- Identifies specific companies, failure reasons, and key takeaways
+- Categorizes failures by type (product-market fit, funding, execution, etc.)
+- Preserves source URLs for verification and deeper research
+
+### 3. **Semantic Knowledge Base**
+- Stores findings in TiDB with vector embeddings for semantic search
+- Prevents duplicate entries while building comprehensive coverage
+- Creates structured data from unstructured web content
+- Enables similarity-based discovery of related failure patterns
+
+### 4. **Autonomous Operation**
+- Runs continuously without human intervention
+- Self-expands research scope based on discoveries
+- Manages rate limits and API quotas intelligently
+- Handles errors and connection issues gracefully
+
+## 🏗️ Architecture
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
+│   Web Search    │───▶│   AI Analysis    │───▶│   Vector Storage    │
+│   (Tavily)      │    │   (Gemini Pro)   │    │     (TiDB)          │
+└─────────────────┘    └──────────────────┘    └─────────────────────┘
+         ▲                       │                        │
+         │                       ▼                        │
+┌─────────────────┐    ┌──────────────────┐               │
+│ Query Generator │◀───│ Pattern Analysis │◀──────────────┘
+│   (Gemini)      │    │   (Discovery)    │
+└─────────────────┘    └──────────────────┘
+```
+
+## 📊 Data Schema
+
+Each discovered startup failure includes:
+
+```json
+{
+  "company_name": "string",
+  "failure_reason_category": "string", 
+  "what_they_did": "string",
+  "what_went_wrong": "string", 
+  "key_takeaway": "string",
+  "source_url": "string",
+  "summary_vector": "float[]"
+}
+```
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Python 3.9+
+- TiDB database (local or cloud)
+- API keys for:
+  - Google AI (Gemini)
+  - Tavily Search
+  - OpenAI (for embeddings)
+
+### Installation
+
+```bash
+# Clone and setup
+git clone <repository>
+cd cassandra-agent
+uv venv
+source .venv/bin/activate
+uv pip install -r requirements.txt
+```
+
+### Configuration
+
+Create `.env` file:
+
+```env
+# Database
+TIDB_HOST=your-tidb-host
+TIDB_PORT=4000
+TIDB_USER=your-username
+TIDB_PASSWORD=your-password
+TIDB_DATABASE=your-database
+
+# API Keys
+GOOGLE_API_KEY=your-gemini-key
+TAVILY_API_KEY=your-tavily-key
+OPENAI_API_KEY=your-openai-key
+```
+
+### Database Setup
+
+```sql
+-- Create tables
+CREATE TABLE search_frontier (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    query VARCHAR(500) UNIQUE,
+    status ENUM('pending', 'completed') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE startup_failures (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    company_name VARCHAR(255),
+    failure_reason VARCHAR(500),
+    summary TEXT,
+    what_they_did TEXT,
+    what_went_wrong TEXT,
+    key_takeaway TEXT,
+    sourceUrl VARCHAR(1000),
+    summary_vector JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX(company_name)
+);
+```
+
+### Running the Agent
+
+```bash
+uv run main.py
+```
+
+## 🎛️ Configuration Options
+
+```python
+# Agent Parameters
+RESEARCH_ITERATIONS = 10    # Max research cycles
+BATCH_SIZE = 5             # Queries per iteration
+SEMAPHORE = asyncio.Semaphore(5)  # Concurrent operations limit
+
+# Seed topics - customize for your research focus
+SEED_TOPICS = [
+    "Y Combinator startup post-mortems",
+    "TechCrunch deadpool analysis",
+    "CB Insights startup failure reports",
+    # Add your own topics...
+]
+```
+
+## 📈 Sample Output
+
+```
+--- Starting Cassandra Industrial Research Agent ---
+🌱 Seeding the research frontier...
+✅ Frontier seeded.
+
+--- 🔄 Starting Research Iteration 1/10 ---
+  -> Analyzing (Pro): Y Combinator startup post-mortems
+  -> Found 12 potential cases. Loading new ones into TiDB...
+    -> ✅ Stored: Homejoy (from https://techcrunch.com/...)
+    -> ✅ Stored: Zirtual (from https://medium.com/...)
+  -> Stored 8 new startups. Total in DB: 8
+
+🧠 Expanding frontier with new search queries...
+✅ Added 5 new queries to the frontier.
+```
+
+## 🔍 What You'll Discover
+
+The agent typically finds:
+
+- **Product-Market Fit Failures**: Companies that built something nobody wanted
+- **Funding & Cash Flow Issues**: Startups that ran out of money
+- **Execution Problems**: Good ideas, poor implementation
+- **Market Timing**: Too early or too late to market
+- **Team Dynamics**: Co-founder conflicts and leadership issues
+- **Competition**: Outmaneuvered by larger players
+- **Pivot Failures**: Unsuccessful attempts to change direction
+
+## 🛡️ Features
+
+### Intelligent Deduplication
+- Prevents storing the same company multiple times
+- Uses fuzzy matching on company names
+- Maintains data quality and uniqueness
+
+### Source Attribution
+- Every failure story includes its source URL
+- Enables fact-checking and deeper research
+- Maintains transparency and credibility
+
+### Semantic Search Ready
+- Vector embeddings enable "find similar failures"
+- Can discover patterns across different industries
+- Supports building recommendation systems
+
+### Fault Tolerant
+- Handles API rate limits gracefully
+- Recovers from network errors
+- Manages database connection pooling
+- Logs errors without stopping the research
+
+## 📚 Use Cases
+
+### For Entrepreneurs
+- Learn from others' mistakes before making your own
+- Identify common failure patterns in your industry
+- Validate assumptions against historical data
+
+### For Investors
+- Due diligence research on market risks
+- Pattern recognition for investment decisions
+- Portfolio company risk assessment
+
+### For Researchers
+- Academic studies on entrepreneurship
+- Failure pattern analysis across industries
+- Building predictive models for startup success
+
+### For Content Creators
+- Rich source material for articles and videos
+- Data-driven insights on startup ecosystems
+- Trend analysis and market intelligence
+
+## 🔮 Future Enhancements
+
+- **Industry Classification**: Auto-categorize failures by sector
+- **Timeline Analysis**: Track failure patterns over time
+- **Sentiment Analysis**: Measure emotional tone of failure stories
+- **Network Effects**: Map connections between failed startups
+- **Predictive Modeling**: Early warning systems for current startups
+
+## ⚠️ Limitations
+
+- **Data Quality**: Dependent on publicly available information
+- **Bias**: May overrepresent well-documented failures
+- **Recency**: Some historical failures may be under-represented
+- **Attribution**: Source quality varies across the web
+
+## 🤝 Contributing
+
+This agent is designed to be extensible:
+
+1. **Add New Sources**: Modify search strategies for specific data sources
+2. **Improve Analysis**: Enhance the AI prompts for better extraction
+3. **New Categories**: Add failure classification categories
+4. **Export Features**: Build dashboards and reporting tools
+
+*"Those who cannot remember the past are condemned to repeat it."* - George Santayana
+
+Let Cassandra help you learn from the futures that never were.

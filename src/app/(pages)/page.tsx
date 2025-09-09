@@ -1,3 +1,4 @@
+// --- FILE: src/app/(pages)/page.tsx ---
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -726,7 +727,7 @@ const LandingPage = ({ className }: PageProps) => {
               [251, 191, 36], // Amber-400
               [251, 191, 36], // Amber-400
             ]}
-            dotSize={2}
+            dotSize={3}
             reverse={false}
           />
         </div>
@@ -785,6 +786,24 @@ const LandingPage = ({ className }: PageProps) => {
                     </button>
                   </div>
                 </form>
+                {/* WINNING UX: Example Pitches */}
+                {/* This is a massive UX win for the demo. It removes friction and allows judges to see the app's */}
+                {/* full power in a single click, using pre-vetted examples that produce great results. */}
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-xs text-white/60">
+                    <span>Try an example:</span>
+                    <Link href="/dashboard?pitch=A%20subscription%20box%20for%20rare%20houseplants%20curated%20by%20AI" 
+                          className="px-3 py-1 border border-white/20 rounded-full hover:bg-white/10 transition-colors">
+                      AI Plant Subscription
+                    </Link>
+                    <Link href="/dashboard?pitch=A%20hyperlocal%20social%20network%20for%20neighbors%20to%20barter%20skills%20and%20goods"
+                          className="px-3 py-1 border border-white/20 rounded-full hover:bg-white/10 transition-colors">
+                      Neighborly Skill-Swap
+                    </Link>
+                    <Link href="/dashboard?pitch=A%20tool%20that%20uses%20gamification%20to%20help%20enterprise%20teams%20learn%20new%20software"
+                          className="px-3 py-1 border border-white/20 rounded-full hover:bg-white/10 transition-colors">
+                      Gamified B2B Training
+                    </Link>
+                </div>
               </div>
 
               <p className="text-xs text-white/40 pt-10">

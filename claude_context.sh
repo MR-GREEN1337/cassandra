@@ -1,103 +1,72 @@
 #!/bin/bash
 #
-# Context-Aware AI Prompt Generator for the Cassandra Project
-#
-# This script compiles the project's specific vision (a startup analysis tool),
-# its file structure, and all relevant source code into a single context file.
-# This allows an AI to understand the project's goals and implementation deeply.
+# Alloy - Context Generation Script v1
+# This script gathers all relevant source code from the backend and web,
+# then appends an updated architectural prompt and directory trees to create a comprehensive context file.
 #
 
-# Exit immediately if a command exits with a non-zero status.
-set -e
+echo "--- Generating complete context for Alloy ---"
 
-# --- Color Codes for Output ---
-BLUE='\033[0;34m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+# --- Step 1: Clear previous context for a fresh start ---
+echo "[1/4] Clearing old context file..."
+> claude_context.txt
 
-# --- Configuration ---
-OUTPUT_FILE="prompt_context.txt"
+# --- Step 2: Append Backend Source (Python/FastAPI) ---
+echo "[2/4] Appending backend source files (*.py)..."
+find backend/src -name "*.py" -exec sh -c '
+  echo "File: {}" >> claude_context.txt && cat {} >> claude_context.txt && echo -e "\n-e\n" >> claude_context.txt
+' \;
+find backend/tests -name "*.py" -exec sh -c '
+  echo "File: {}" >> claude_context.txt && cat {} >> claude_context.txt && echo -e "\n-e\n" >> claude_context.txt
+' \;
 
-# The "Vision": The high-level goal and purpose of THIS SPECIFIC project.
-# This has been updated to reflect the Cassandra startup analysis tool concept.
-PROJECT_VISION=$(cat <<-END
-The project is a web application named "Cassandra", a frontend-only prototype designed to act as an AI co-pilot for startup founders.
+# --- Step 3: Append Web App Source (Next.js/React) ---
+echo "[3/4] Appending web source files (*.ts, *.tsx)..."
+find web/src -type f \( -name "*.ts" -o -name "*.tsx" \) -exec sh -c '
+  echo "File: $1" >> claude_context.txt && cat "$1" >> claude_context.txt && echo -e "\n-e\n" >> claude_context.txt
+' sh {} \;
 
-The core premise is to de-risk new ventures by analyzing a user's startup pitch, business plan, or feature idea against a simulated knowledge base of 1,000+ startup failures. The AI's goal is to identify potential pitfalls, competitive threats, and market risks proactively.
+# --- Step 4: Append Directory Trees & Final Prompt ---
+echo "[4/4] Appending directory trees and project prompt..."
+{
+  echo "--- DIRECTORY TREES ---"
+  echo ""
+  echo "Backend Tree:"
+  tree backend/src
+  echo ""
+  echo "Backend Tests Tree:"
+  tree backend/tests
+  echo ""
+  echo "Web App Tree:"
+  tree web/src
+  echo ""
+  echo "-----------------------"
+  echo ""
+} >> claude_context.txt
 
-**Crucially, this is a web-only prototype. All AI responses are currently simulated within the frontend code to demonstrate the UX and functionality without a real backend.**
+# Append your startup context at the bottom
+cat <<'EOT' >> claude_context.txt
+The project is "Cassandra," a full-stack, AI-powered strategic co-pilot for startup founders. Its mission is to prevent preventable failures by stress-testing a founder's idea against a rich, agent-built knowledge base of 1,000+ startup post-mortems.
 
-The user interface is a spatial, canvas-based system built with Next.js and React Flow, which allows for a non-linear exploration of ideas:
+The system is a cohesive, three-part architecture:
 
-Key Features:
-- **Spatial Idea Exploration:** Users create nodes on an infinite canvas. The initial node is for the main pitch.
-- **Contextual Follow-ups:** Users can highlight specific risks or points in the AI's analysis (e.g., "competitive pressure") to create new, connected nodes for deeper, focused exploration on that specific topic.
-- **Node Merging:** Users can select multiple analysis nodes and merge them into a single, synthesized summary node.
-- **Professional Session Management:** All analysis sessions are automatically saved to the browser's `localStorage`. A "startup-like" sidebar allows users to load, create, and delete past sessions, which are grouped by date.
-- **Polished UI:** Includes a minimap for navigation, light/dark themes, and a clean aesthetic using Tailwind CSS and Shadcn UI.
-END
-)
+1.  **The Autonomous Data Agent (`data-agent`):** A sophisticated Python agent that built the project's core dataset. It uses Tavily for web discovery, Gemini 1.5 Pro for structured data extraction, OpenAI for vector embeddings, and populates a TiDB Serverless database. This agent demonstrates a complete, automated data pipeline.
 
-# --- Script Execution ---
-echo -e "${BLUE}Generating AI context for Cassandra (Frontend Prototype)...${NC}"
+2.  **The Hybrid RAG Backend (`/api/analyze`):** A high-performance Next.js serverless function that acts as the live reasoning engine. When a user submits a pitch, it performs a **true hybrid search** against TiDB—using vector search for semantic/conceptual similarity and full-text search for factual/keyword matches. This retrieved context is then fed to the Kimi LLM to generate a two-part response:
+    *   A structured JSON object with a quantitative **Risk Scorecard**.
+    *   A detailed, streaming Markdown analysis with verifiable source citations.
 
-# Start with a clean slate.
-> "$OUTPUT_FILE"
+3.  **The Strategic Frontend Workspace (`/dashboard`):** A polished and intuitive UI built with Next.js, React Flow, and Tailwind CSS. This is the user's "Failure Map," an infinite canvas for non-linear idea exploration. It features:
+    *   **Interactive Nodes:** Display the AI's analysis, including the color-coded Risk Scorecard and favicon-enhanced links to sources.
+    *   **Session Management:** A complete, persistent workspace with sessions saved to localStorage.
+    *   **"Browse Corpus" Page:** A searchable, paginated view of the underlying TiDB database, providing full transparency into the knowledge base.
 
-# 1. Add the Project Vision to the output file
-echo "## Project Vision and Core Concept" >> "$OUTPUT_FILE"
-echo "---------------------------------" >> "$OUTPUT_FILE"
-echo "$PROJECT_VISION" >> "$OUTPUT_FILE"
-echo -e "\n\n" >> "$OUTPUT_FILE"
+**Key Differentiators (Why This Project Wins):**
 
-# 2. Add the Project File Structure
-echo "## Project File Structure" >> "$OUTPUT_FILE"
-echo "------------------------" >> "$OUTPUT_FILE"
-if ! command -v tree &> /dev/null
-then
-    echo -e "${YELLOW}Warning: 'tree' command not found. Skipping file structure generation.${NC}"
-    echo "To install, run: brew install tree (macOS) or sudo apt-get install tree (Debian/Ubuntu)" >> "$OUTPUT_FILE"
-else
-    # Exclude common large/irrelevant directories for a clean tree
-    tree -I 'node_modules|.next|.git|dist|build' >> "$OUTPUT_FILE"
-fi
-echo -e "\n\n" >> "$OUTPUT_FILE"
+-   **True Hybrid RAG:** Perfectly leverages the sponsor's tech (TiDB) by combining vector and full-text search in a single workflow to produce nuanced, highly relevant context. This is the core technical innovation.
+-   **Structured + Streaming Analysis:** The API doesn't just return text; it provides a quantitative JSON `Risk Scorecard` upfront for immediate insight, followed by a detailed qualitative analysis streamed in real-time.
+-   **Agent-Built Knowledge Base:** The data isn't a static CSV file; it's a living database built and maintained by a separate, autonomous AI agent, fulfilling the "multi-step agentic workflow" requirement of the hackathon.
+-   **Actionable & Verifiable UX:** The "Failure Map" is more than a chat window; it's a strategic tool. The Risk Scorecard and cited sources transform AI-generated text into trusted, actionable intelligence.
+EOT
 
-# 3. Add the contents of all relevant source files
-echo "## Source Code Files" >> "$OUTPUT_FILE"
-echo "-------------------" >> "$OUTPUT_FILE"
-
-# Find and concatenate all relevant frontend source files.
-find ./src -type f \( -name "*.tsx" -o -name "*.ts" -o -name "*.css" \) -print0 | while IFS= read -r -d '' file; do
-    echo -e "\n// --- FILE: ${file} ---\n" >> "$OUTPUT_FILE"
-    cat "$file" >> "$OUTPUT_FILE"
-done
-
-# Also include root configuration files
-for file in "tailwind.config.ts" "package.json" "next.config.mjs" "postcss.config.js" "tsconfig.json"; do
-    if [ -f "$file" ]; then
-        echo -e "\n// --- FILE: ${file} ---\n" >> "$OUTPUT_FILE"
-        cat "$file" >> "$OUTPUT_FILE"
-    fi
-done
-
-cat ./data-agent/README.md >> "$OUTPUT_FILE"
-echo -e "\n\n" >> "$OUTPUT_FILE"
-cat ./data-agent/main.py >> "$OUTPUT_FILE"
-echo -e "\n\n" >> "$OUTPUT_FILE"
-
-echo -e "${GREEN}Context successfully generated in '${OUTPUT_FILE}'${NC}"
-
-# 4. Copy to clipboard for easy pasting into an LLM
-if command -v pbcopy &> /dev/null; then
-    cat "$OUTPUT_FILE" | pbcopy
-    echo -e "${GREEN}Project context has been copied to your clipboard (macOS).${NC}"
-elif command -v xclip &> /dev/null; then
-    cat "$OUTPUT_FILE" | xclip -selection clipboard
-    echo -e "${GREEN}Project context has been copied to your clipboard (Linux).${NC}"
-else
-    echo -e "${YELLOW}Clipboard utility not found. Please manually copy the contents of '${OUTPUT_FILE}'.${NC}"
-fi
-
-echo -e "\n${BLUE}--- DONE ---${NC}"
+echo "--- Context generation complete. File 'claude_context.txt' is ready. ---"

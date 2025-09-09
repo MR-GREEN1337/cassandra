@@ -11,20 +11,25 @@ datasource db {
 
 // Model for the startup failure data
 model StartupFailure {
-  id                      Int     @id @default(autoincrement())
-  companyName             String  @map("company_name")
-  failureReason           String? @map("failure_reason") @db.VarChar(191)
-  summary                 String? @db.Text // Make summary optional to align with long-form
-  summaryVector           Unsupported("VECTOR(1536)")? @map("summary_vector")
-  whatTheyDid             String? @map("what_they_did") @db.Text
-  whatWentWrong           String? @map("what_went_wrong") @db.Text
-  keyTakeaway             String? @map("key_takeaway") @db.VarChar(512)
-  sourceUrl               String? @map("source_url")
+  id              Int     @id @default(autoincrement())
+  companyName     String  @map("company_name")
+  
+  failureReason   String? @db.Text @map("failure_reason")
+  summary         String? @db.Text
+  whatTheyDid     String? @db.Text @map("what_they_did")
+  whatWentWrong   String? @db.Text @map("what_went_wrong")
+  keyTakeaway     String? @db.Text @map("key_takeaway")
 
+  sourceUrl       String? @map("sourceUrl") @db.VarChar(1000) // Good practice to limit URL length
+  summary_vector  Json?
+
+  @@fulltext([companyName])
+  @@fulltext([failureReason])
+  @@fulltext([summary])
+  @@fulltext([whatWentWrong])
   @@map("startup_failures")
 }
 
-// --- NEW MODEL FOR THE AGENT'S FRONTIER ---
 model SearchFrontier {
   id        Int      @id @default(autoincrement())
   query     String   @unique

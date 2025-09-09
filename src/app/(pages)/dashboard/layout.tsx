@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   ChevronsUpDown, LayoutGrid, BookUser, CreditCard, Settings, LifeBuoy, LogOut,
   HelpCircle, MessageSquare, PanelLeftClose, PanelLeftOpen, Sun, Moon, FolderKanban,
-  Loader2, Plus, Trash2, Download,
+  Loader2, Plus, Trash2, Download, MoreHorizontal, Pencil, Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardProvider, useDashboard, Session } from "@/components/DashboardContext";
@@ -23,7 +23,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { setTheme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(true);
   
-  const { sessions, activeSessionId, loadSession, newSession, deleteSession } = useDashboard();
+  const { sessions, activeSessionId, loadSession, newSession, deleteSession, renameSession, forkSession } = useDashboard();
+  const [renamingId, setRenamingId] = useState<string | null>(null);
 
   const handleExport = () => {
     if (Object.keys(sessions).length === 0) {
@@ -41,6 +42,14 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
+
+  const handleRenameSubmit = (id: string, newName: string) => {
+    if (newName && newName.trim() !== "") {
+      renameSession(id, newName.trim());
+    }
+    setRenamingId(null);
+  };
+
 
   const sessionGroups = useMemo(() => {
     const groups: { [key: string]: Session[] } = { Today: [], Yesterday: [], "Previous 7 Days": [], "Older": [] };
@@ -64,7 +73,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     <TooltipProvider>
       <div className="flex h-screen w-full bg-background text-foreground overflow-hidden">
         <aside className={cn(
-          "hidden md:flex flex-col border-r bg-muted/40 transition-all duration-300 ease-in-out",
+          "hidden md:flex flex-col border-r bg-muted/40 transition-all duration-300 ease-in-out shrink-0",
           isCollapsed ? "w-[56px]" : "w-[240px]"
         )}>
            <div className={cn("flex h-14 items-center border-b px-4")}>
@@ -85,26 +94,55 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                       <Tooltip key={session.id} delayDuration={0}>
                         <TooltipTrigger asChild>
                           <div
-                            onClick={() => loadSession(session.id)}
+                            onClick={() => { if (renamingId !== session.id) loadSession(session.id); }}
                             className={cn(
-                              "group flex items-center gap-3 rounded-md px-3 py-2 text-sm cursor-pointer transition-all hover:bg-accent hover:text-accent-foreground",
+                              "group flex items-center gap-3 rounded-md px-3 py-2 text-sm cursor-pointer transition-all hover:bg-accent hover:text-accent-foreground min-w-0",
                               activeSessionId === session.id ? "bg-accent text-accent-foreground" : "text-muted-foreground",
                               isCollapsed && "justify-center"
                             )}
                           >
                             <MessageSquare className="h-4 w-4 shrink-0" />
-                            {/* --- MODIFICATION START: Added flex-1 and min-w-0 to fix long title bug --- */}
-                            <span className={cn("flex-1 truncate min-w-0", isCollapsed && "hidden")}>
-                              {session.name}
-                            </span>
-                            {/* --- MODIFICATION END --- */}
-                             <Button
-                                onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }}
-                                variant="ghost" size="icon"
-                                className={cn("ml-auto h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100", isCollapsed && "hidden")}
-                              >
-                               <Trash2 className="h-4 w-4 text-red-500" />
-                             </Button>
+                            <div className={cn("flex-1 min-w-0 flex items-center", isCollapsed && "hidden")}>
+                              {renamingId === session.id ? (
+                                 <input
+                                   type="text"
+                                   defaultValue={session.name}
+                                   className="flex-1 min-w-0 bg-transparent border border-primary rounded-md px-1 py-0 text-sm focus:outline-none"
+                                   autoFocus
+                                   onClick={(e) => e.stopPropagation()}
+                                   onBlur={(e) => handleRenameSubmit(session.id, e.target.value)}
+                                   onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                                 />
+                               ) : (
+                                 <span className="flex-1 truncate min-w-0">
+                                   {session.name}
+                                 </span>
+                               )}
+                              <div className="ml-2 opacity-0 group-hover:opacity-100 shrink-0">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={e => e.stopPropagation()}>
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent onClick={e => e.stopPropagation()} align="end" className="w-40">
+                                    <DropdownMenuItem onClick={() => setRenamingId(session.id)}>
+                                      <Pencil className="mr-2 h-4 w-4" />
+                                      <span>Rename</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => forkSession(session.id)}>
+                                      <Copy className="mr-2 h-4 w-4" />
+                                      <span>Duplicate</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => deleteSession(session.id)}>
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      <span>Delete</span>
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </div>
                           </div>
                         </TooltipTrigger>
                         {isCollapsed && (<TooltipContent side="right">{session.name}</TooltipContent>)}
@@ -148,6 +186,17 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
               </DropdownMenu>
 
             <div className="ml-auto flex items-center gap-2">
+            <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <Button asChild variant="ghost" size="icon" className="h-8 w-8">
+                      <Link href="/browse">
+                        <LayoutGrid className="h-4 w-4" />
+                        <span className="sr-only">Browse Corpus</span>
+                      </Link>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">Browse Corpus</TooltipContent>
+              </Tooltip>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" /><Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" /><span className="sr-only">Toggle theme</span></Button></DropdownMenuTrigger>
                 <DropdownMenuContent align="end"><DropdownMenuItem onClick={() => setTheme("light")}>Light</DropdownMenuItem><DropdownMenuItem onClick={() => setTheme("dark")}>Dark</DropdownMenuItem><DropdownMenuItem onClick={() => setTheme("system")}>System</DropdownMenuItem></DropdownMenuContent>
@@ -163,12 +212,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 </DropdownMenuTrigger>
                  <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Account</DropdownMenuLabel>
-                    {/* --- MODIFICATION START: Added Export button with handler --- */}
                     <DropdownMenuItem onClick={handleExport}>
                       <Download className="mr-2 h-4 w-4" />
                       <span>Export Sessions</span>
                     </DropdownMenuItem>
-                    {/* --- MODIFICATION END --- */}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem disabled><Settings className="mr-2 h-4 w-4" /><span>Settings</span></DropdownMenuItem>
                     <DropdownMenuItem disabled><LifeBuoy className="mr-2 h-4 w-4" /><span>Support</span></DropdownMenuItem>

@@ -203,6 +203,7 @@ export async function POST(req: NextRequest) {
       async start(controller) {
         for await (const chunk of stream) {
           const content = chunk.choices[0]?.delta?.content || '';
+          console.log(content);
           controller.enqueue(new TextEncoder().encode(content));
         }
         controller.close();

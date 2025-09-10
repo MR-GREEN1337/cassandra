@@ -3,7 +3,6 @@
 import prisma from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import { InterviewClientPage } from './_components/interview-client';
-import { StartupFailure } from '@prisma/client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
@@ -16,6 +15,8 @@ import {
 } from "@/components/ui/hover-card";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { StartupFailure } from '@/generated/prisma';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,7 @@ async function getStartupFailure(id: string): Promise<StartupFailure | null> {
 }
 
 export default async function InterviewPage({ params }: { params: { id: string } }) {
-  const startup = await getStartupFailure(params.id);
+  const startup = await getStartupFailure((await params).id);
 
   if (!startup) {
     notFound();
@@ -77,6 +78,7 @@ export default async function InterviewPage({ params }: { params: { id: string }
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle/>
             <Button asChild variant="outline">
               <Link href="/browse">Back to Corpus</Link>
             </Button>

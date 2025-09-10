@@ -9,6 +9,7 @@
 !.yarn/plugins
 !.yarn/releases
 .venv/
+__pycache__/
 !.yarn/versions
 
 # testing

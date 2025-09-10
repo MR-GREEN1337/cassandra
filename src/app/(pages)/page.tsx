@@ -727,7 +727,7 @@ const LandingPage = ({ className }: PageProps) => {
               [251, 191, 36], // Amber-400
               [251, 191, 36], // Amber-400
             ]}
-            dotSize={3}
+            dotSize={4}
             reverse={false}
           />
         </div>

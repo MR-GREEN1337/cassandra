@@ -1,3 +1,6 @@
+// src/app/(pages)/browse/_components/smart-pagination.tsx
+'use client'; // <-- Add this line
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ArrowRight, MoreHorizontal } from 'lucide-react';

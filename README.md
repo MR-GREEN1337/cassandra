@@ -12,7 +12,7 @@ Developed by [mr-green1337](https://github.com/mr-green1337) for the TiDB AgentX
 
 ### **[➡️ Live Demo ⬅️](https://use-cassandra.vercel.app)**
 
-![Cassandra Screenshot](./public/screenshot.png)
+![Cassandra Screenshot](./assets/screenshot.png)
 
 ### TL;DR: What is this?
 

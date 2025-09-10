@@ -67,12 +67,12 @@ function DashboardCanvas() {
   const edgeTypes = useMemo(() => ({ smoothstep: SmoothStepEdge }), []);
 
   const handleStreamingAnalysis = useCallback(async (nodeId: string, pitch: string, file: File | null) => {
-    setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, isLoading: true, response: '', structuredResponse: null } } : n));
-
+    setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, isLoading: true, response: '', structuredResponse: null, pitch } } : n));
+  
     const currentNode = nodes.find(n => n.id === nodeId);
     const parentId = currentNode?.data.parentId;
     const parentNode = parentId ? nodes.find(n => n.id === parentId) : null;
-
+  
     const formData = new FormData();
     formData.append('pitch', pitch);
     if (file) formData.append('file', file);
@@ -80,7 +80,9 @@ function DashboardCanvas() {
       formData.append('parentPitch', parentNode.data.pitch);
       if (parentNode.data.response) formData.append('parentAnalysis', parentNode.data.response);
     }
-
+    const interactionType = parentNode ? 'follow-up' : 'initial';
+    formData.append('interactionType', interactionType);
+  
     try {
       const response = await fetch('/api/analyze', { method: 'POST', body: formData });
       
@@ -91,58 +93,80 @@ function DashboardCanvas() {
       let buffer = '';
       let jsonParsed = false;
       const separator = '---';
-
-      const read = async () => {
+  
+      while (true) {
         const { done, value } = await reader.read();
         if (done) {
           setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, isLoading: false } } : n));
-          return;
+          break;
         }
-
-        buffer += decoder.decode(value, { stream: true });
+  
+        const chunk = decoder.decode(value, { stream: true });
+        console.log('CHUNK RECEIVED:', JSON.stringify(chunk)); // Debug log
         
-        if (!jsonParsed) {
-          const separatorIndex = buffer.indexOf(separator);
-          if (separatorIndex !== -1) {
-            const jsonString = buffer.substring(0, separatorIndex);
-            try {
-              const parsedJson = JSON.parse(jsonString);
-              setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, structuredResponse: parsedJson } } : n));
-              
-              const markdownContent = buffer.substring(separatorIndex + separator.length);
-              setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, response: markdownContent } } : n));
-
-              jsonParsed = true;
-            } catch (e) {
-              // Incomplete JSON, continue buffering.
-            }
-          }
+        if (interactionType === 'follow-up') {
+          // For follow-ups, stream directly to response
+          setNodes(nds => nds.map(n => n.id === nodeId ? { 
+            ...n, 
+            data: { ...n.data, response: (n.data.response || '') + chunk } 
+          } : n));
         } else {
-          // JSON already parsed, append the rest of the stream as markdown
-          setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, response: (n.data.response || '') + buffer } } : n));
-          // Reset buffer after appending
-          buffer = '';
+          // For initial analysis, handle JSON---Markdown format
+          buffer += chunk;
+          console.log('BUFFER LENGTH:', buffer.length, 'JSON PARSED:', jsonParsed); // Debug log
+          
+          if (!jsonParsed) {
+            const separatorIndex = buffer.indexOf(separator);
+            console.log('SEPARATOR INDEX:', separatorIndex); // Debug log
+            
+            if (separatorIndex !== -1) {
+              // Found separator - extract JSON and remaining markdown
+              const jsonPart = buffer.substring(0, separatorIndex).trim();
+              const markdownPart = buffer.substring(separatorIndex + separator.length);
+              
+              console.log('ATTEMPTING TO PARSE JSON:', jsonPart.substring(0, 100) + '...'); // Debug log
+              
+              try {
+                const structuredData = JSON.parse(jsonPart);
+                jsonParsed = true;
+                
+                console.log('JSON PARSED SUCCESSFULLY:', structuredData); // Debug log
+                
+                // Update node with structured data and initial markdown
+                setNodes(nds => nds.map(n => n.id === nodeId ? {
+                  ...n,
+                  data: {
+                    ...n.data,
+                    structuredResponse: structuredData,
+                    response: markdownPart,
+                  }
+                } : n));
+                
+              } catch (e) {
+                console.error('JSON parsing failed:', e);
+                console.log('Failed JSON content:', jsonPart);
+                // Continue buffering if JSON is incomplete
+              }
+            }
+          } else {
+            // JSON already parsed, just append new markdown chunks
+            setNodes(nds => nds.map(n => n.id === nodeId ? { 
+              ...n, 
+              data: { ...n.data, response: (n.data.response || '') + chunk } 
+            } : n));
+          }
         }
-
-        // After processing, if jsonParsed, we can append the rest of the current chunk directly
-        if(jsonParsed && buffer.length > 0) {
-           setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, response: (n.data.response || '') + buffer } } : n));
-           buffer = '';
-        }
-        
-        await read();
-      };
-      await read();
+      }
     } catch (error) {
       console.error("Failed to stream analysis:", error);
       const errorMessage = "Sorry, I couldn't complete the analysis. The AI model may be overloaded. Please try again.";
-      setNodes(nds => nds.map(n => n.id === nodeId ? { ...n, data: { ...n.data, response: errorMessage, isLoading: false } } : n));
+      setNodes(nds => nds.map(n => n.id === nodeId ? { 
+        ...n, 
+        data: { ...n.data, response: errorMessage, isLoading: false } 
+      } : n));
     }
-  }, [setNodes, nodes]);
+  }, [setNodes, nodes]);  
 
-  // WINNING UX: "Emergent" node creation animation.
-  // This function now creates a new node at the parent's location, then animates it to its final position.
-  // This makes the UI feel alive and reinforces the "branching thought" metaphor. It's a high-polish detail.
   const createFollowUpNode = useCallback((text: string, sourceId: string) => {
     const sourceNode = nodes.find(n => n.id === sourceId);
     if (!sourceNode) return;
@@ -153,11 +177,10 @@ function DashboardCanvas() {
     const contextTitle = sourceData.pitch && sourceData.pitch.length > 50 ? sourceData.pitch.substring(0, 50) + '...' : sourceData.pitch;
     const newNodeWidth = 500;
 
-    // 1. Create the new node AT the parent's position with scale 0 to start the animation
     const newNode: CassandraNode = {
       id: newNodeId,
       type: 'pitchNode',
-      position: { x: sourcePos.x, y: sourcePos.y + (height || 200) / 2 }, // Start from parent center
+      position: { x: sourcePos.x, y: sourcePos.y + (height || 200) / 2 },
       data: { 
         pitch: text, 
         response: null, 
@@ -167,7 +190,6 @@ function DashboardCanvas() {
         onAnalysis: () => {},
         createFollowUpNode: () => {},
       },
-      // Use React Flow's `style` prop for initial animation state
       style: { opacity: 0, transform: 'scale(0.5)' },
     };
     
@@ -182,17 +204,14 @@ function DashboardCanvas() {
     setNodes(n => [...n, newNode]);
     setEdges(e => [...e, newEdge]);
     
-    // 2. In the next render cycle, update it to its final state to trigger the CSS transition
     setTimeout(() => {
       setNodes(nds => nds.map(n => 
         n.id === newNodeId ? {
           ...n,
           position: { x: sourcePos.x + (width || newNodeWidth) / 2 - (newNodeWidth / 2), y: sourcePos.y + (height || 200) + 60 },
-          // The transition is handled by CSS on the node itself or via this style prop
           style: { opacity: 1, transform: 'scale(1)', transition: 'all 0.4s ease-out' },
         } : n
       ));
-      // Pan view to the new node
       setTimeout(() => fitView({ nodes: [{ id: newNodeId }], duration: 600, padding: 0.3 }), 100);
     }, 50);
 
@@ -201,7 +220,6 @@ function DashboardCanvas() {
   const handleMerge = useCallback(async () => {
     if (selectedNodes.length < 2) return;
     const content = selectedNodes.map((n, i) => `--- Entry ${i + 1} ---\nPitch: ${n.data.pitch}\nAnalysis: ${n.data.response || 'N/A'}`).join('\n\n');
-    const prompt = `Synthesize these entries:\n\n${content}`;
     const avgX = selectedNodes.reduce((s, n) => s + n.position.x, 0) / selectedNodes.length;
     const avgY = selectedNodes.reduce((s, n) => s + n.position.y, 0) / selectedNodes.length;
     const newId = `n_merged_${Date.now()}`;
@@ -217,7 +235,6 @@ function DashboardCanvas() {
     setEdges(eds => eds.filter(e => !selectedIds.has(e.source) && !selectedIds.has(e.target)));
     setSelectedNodes([]);
     
-    // This is a placeholder for a real merge API call
     await new Promise(r => setTimeout(r, 1000));
     const mergedResponse = `This is a synthesized summary of ${selectedNodes.length} previous analyses. The recurring themes identified are market viability and user acquisition challenges. The consensus points towards prioritizing a niche-first strategy to validate the core value proposition before scaling.`;
     setNodes(nds => nds.map(n => n.id === newId ? { ...n, data: { ...n.data, pitch: 'Synthesized Analysis', response: mergedResponse, isLoading: false } } : n));

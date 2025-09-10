@@ -2,18 +2,15 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { StartupFailure } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowUp, Bot, Loader2, Sparkles, User } from 'lucide-react'; // Removed BookText
+import { ArrowUp, Bot, Loader2, Sparkles, User } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { FaviconLink } from '@/components/FaviconLink';
-// Separator and Badge are no longer needed here
-// import { Separator } from '@/components/ui/separator';
-// import { Badge } from '@/components/ui/badge';
+import { StartupFailure } from '@/generated/prisma';
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -34,13 +31,21 @@ export function InterviewClientPage({ startup }: { startup: StartupFailure }) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [agentStatus, setAgentStatus] = useState('');
-  const viewportRef = useRef<HTMLDivElement>(null);
-
+  
+  // --- MODIFICATION START: Use a ref for the scroll viewport ---
+  const scrollViewportRef = useRef<HTMLDivElement>(null);
+  
   useEffect(() => {
-    if (viewportRef.current) {
-      viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
+    if (scrollViewportRef.current) {
+      // Use requestAnimationFrame for smoother scrolling after render
+      requestAnimationFrame(() => {
+        if (scrollViewportRef.current) {
+            scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
+        }
+      });
     }
   }, [messages, agentStatus]);
+  // --- MODIFICATION END ---
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,12 +99,15 @@ export function InterviewClientPage({ startup }: { startup: StartupFailure }) {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <ScrollArea className="flex-1" viewportRef={viewportRef}>
-        <div className="container mx-auto max-w-3xl px-4 pt-8 pb-32">
-          {/* WINNING UI: The static case study block has been REMOVED from the chat flow. */}
-          {/* This makes the initial view much cleaner and focuses the user on starting the conversation. */}
-          
+    // --- MODIFICATION START: Add `relative` to the main container ---
+    <div className="flex-1 flex flex-col overflow-hidden relative">
+    {/* --- MODIFICATION END --- */}
+
+      {/* --- MODIFICATION START: Pass the ref to the ScrollArea's viewport --- */}
+      <ScrollArea className="flex-1" ref={scrollViewportRef}>
+        {/* --- MODIFICATION START: Add padding-bottom to prevent content from being hidden by the absolute footer --- */}
+        <div className="container mx-auto max-w-3xl px-4 pt-8 pb-28">
+        {/* --- MODIFICATION END --- */}
           <div className="space-y-6">
             {messages.map((msg, index) => (
               <div key={index} className={cn('flex items-start gap-3 w-full', msg.role === 'user' ? 'flex-row-reverse' : 'flex-row')}>
@@ -129,8 +137,10 @@ export function InterviewClientPage({ startup }: { startup: StartupFailure }) {
         </div>
       </ScrollArea>
       
-      <footer className="shrink-0">
-        <div className="sticky bottom-0 w-full bg-gradient-to-t from-background via-background/80 to-transparent">
+      {/* --- MODIFICATION START: Position the footer absolutely within the relative parent --- */}
+      <footer className="absolute bottom-0 left-0 right-0 z-10">
+      {/* --- MODIFICATION END --- */}
+        <div className="w-full bg-gradient-to-t from-background via-background/90 to-transparent">
           <div className="container mx-auto max-w-3xl p-4">
             <form onSubmit={handleSubmit} className="relative">
               <div className="relative">

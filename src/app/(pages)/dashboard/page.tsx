@@ -39,13 +39,16 @@ function CanvasController() {
 
   useEffect(() => {
     if (nodes.length > 0) {
-      fitView({
-        nodes: [{ id: nodes[0].id }],
-        duration: 800,
-        padding: 0.2,
-      });
+      const firstNode = nodes.find(n => n.data.parentId === undefined);
+      if (firstNode) {
+        fitView({
+          nodes: [{ id: firstNode.id }],
+          duration: 800,
+          padding: 0.2,
+        });
+      }
     }
-  }, [activeSessionId]); // Removed `fitView` and `nodes` from deps to only run on session change
+  }, [activeSessionId, fitView, nodes]);
 
   return null;
 }
@@ -102,54 +105,55 @@ function DashboardCanvas() {
         }
   
         const chunk = decoder.decode(value, { stream: true });
-        console.log('CHUNK RECEIVED:', JSON.stringify(chunk)); // Debug log
         
         if (interactionType === 'follow-up') {
-          // For follow-ups, stream directly to response
           setNodes(nds => nds.map(n => n.id === nodeId ? { 
             ...n, 
             data: { ...n.data, response: (n.data.response || '') + chunk } 
           } : n));
         } else {
-          // For initial analysis, handle JSON---Markdown format
           buffer += chunk;
-          console.log('BUFFER LENGTH:', buffer.length, 'JSON PARSED:', jsonParsed); // Debug log
           
           if (!jsonParsed) {
             const separatorIndex = buffer.indexOf(separator);
-            console.log('SEPARATOR INDEX:', separatorIndex); // Debug log
             
             if (separatorIndex !== -1) {
-              // Found separator - extract JSON and remaining markdown
-              const jsonPart = buffer.substring(0, separatorIndex).trim();
+              const jsonPart = buffer.substring(0, separatorIndex);
               const markdownPart = buffer.substring(separatorIndex + separator.length);
               
-              console.log('ATTEMPTING TO PARSE JSON:', jsonPart.substring(0, 100) + '...'); // Debug log
+              // --- FINAL, ROBUST FIX START ---
+              // Add extra debugging to see exactly what we're trying to parse.
+              console.log('Raw JSON part received from buffer:', jsonPart);
               
               try {
-                const structuredData = JSON.parse(jsonPart);
-                jsonParsed = true;
+                // Find the start and end of the actual JSON object, ignoring any surrounding text or markdown.
+                const firstBrace = jsonPart.indexOf('{');
+                const lastBrace = jsonPart.lastIndexOf('}');
                 
-                console.log('JSON PARSED SUCCESSFULLY:', structuredData); // Debug log
-                
-                // Update node with structured data and initial markdown
-                setNodes(nds => nds.map(n => n.id === nodeId ? {
-                  ...n,
-                  data: {
-                    ...n.data,
-                    structuredResponse: structuredData,
-                    response: markdownPart,
-                  }
-                } : n));
-                
+                if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+                  const potentialJson = jsonPart.substring(firstBrace, lastBrace + 1);
+                  console.log('Attempting to parse cleaned JSON:', potentialJson);
+                  
+                  const structuredData = JSON.parse(potentialJson);
+                  jsonParsed = true;
+                  
+                  console.log('JSON PARSED SUCCESSFULLY:', structuredData);
+                  
+                  setNodes(nds => nds.map(n => n.id === nodeId ? {
+                    ...n,
+                    data: {
+                      ...n.data,
+                      structuredResponse: structuredData,
+                      response: markdownPart,
+                    }
+                  } : n));
+                }
               } catch (e) {
-                console.error('JSON parsing failed:', e);
-                console.log('Failed JSON content:', jsonPart);
-                // Continue buffering if JSON is incomplete
+                console.log("JSON is not yet complete or valid, continuing to buffer...");
               }
+              // --- FINAL, ROBUST FIX END ---
             }
           } else {
-            // JSON already parsed, just append new markdown chunks
             setNodes(nds => nds.map(n => n.id === nodeId ? { 
               ...n, 
               data: { ...n.data, response: (n.data.response || '') + chunk } 
@@ -169,18 +173,21 @@ function DashboardCanvas() {
 
   const createFollowUpNode = useCallback((text: string, sourceId: string) => {
     const sourceNode = nodes.find(n => n.id === sourceId);
-    if (!sourceNode) return;
-    const { position: sourcePos, data: sourceData, width, height } = sourceNode;
-    if (!sourcePos) return;
+    if (!sourceNode || !sourceNode.position) return;
 
+    const { position: sourcePos, data: sourceData, width, height } = sourceNode;
+    
     const newNodeId = `node_${Date.now()}`;
     const contextTitle = sourceData.pitch && sourceData.pitch.length > 50 ? sourceData.pitch.substring(0, 50) + '...' : sourceData.pitch;
     const newNodeWidth = 500;
 
+    const finalX = sourcePos.x + (width || newNodeWidth) / 2 - (newNodeWidth / 2);
+    const finalY = sourcePos.y + (height || 200) + 60;
+
     const newNode: CassandraNode = {
       id: newNodeId,
       type: 'pitchNode',
-      position: { x: sourcePos.x, y: sourcePos.y + (height || 200) / 2 },
+      position: { x: finalX, y: finalY },
       data: { 
         pitch: text, 
         response: null, 
@@ -190,7 +197,6 @@ function DashboardCanvas() {
         onAnalysis: () => {},
         createFollowUpNode: () => {},
       },
-      style: { opacity: 0, transform: 'scale(0.5)' },
     };
     
     const newEdge: Edge = {
@@ -205,21 +211,13 @@ function DashboardCanvas() {
     setEdges(e => [...e, newEdge]);
     
     setTimeout(() => {
-      setNodes(nds => nds.map(n => 
-        n.id === newNodeId ? {
-          ...n,
-          position: { x: sourcePos.x + (width || newNodeWidth) / 2 - (newNodeWidth / 2), y: sourcePos.y + (height || 200) + 60 },
-          style: { opacity: 1, transform: 'scale(1)', transition: 'all 0.4s ease-out' },
-        } : n
-      ));
-      setTimeout(() => fitView({ nodes: [{ id: newNodeId }], duration: 600, padding: 0.3 }), 100);
+      fitView({ nodes: [{ id: newNodeId }], duration: 600, padding: 0.3 });
     }, 50);
 
   }, [resolvedTheme, setNodes, setEdges, nodes, fitView]);
 
   const handleMerge = useCallback(async () => {
     if (selectedNodes.length < 2) return;
-    const content = selectedNodes.map((n, i) => `--- Entry ${i + 1} ---\nPitch: ${n.data.pitch}\nAnalysis: ${n.data.response || 'N/A'}`).join('\n\n');
     const avgX = selectedNodes.reduce((s, n) => s + n.position.x, 0) / selectedNodes.length;
     const avgY = selectedNodes.reduce((s, n) => s + n.position.y, 0) / selectedNodes.length;
     const newId = `n_merged_${Date.now()}`;

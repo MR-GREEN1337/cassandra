@@ -12,6 +12,7 @@ import {
   ChevronsUpDown, LayoutGrid, BookUser, CreditCard, Settings, LifeBuoy, LogOut,
   HelpCircle, MessageSquare, PanelLeftClose, PanelLeftOpen, Sun, Moon, FolderKanban,
   Loader2, Plus, Trash2, Download, MoreHorizontal, Pencil, Copy,
+  FileText, // --- MODIFICATION: Import the report icon ---
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardProvider, useDashboard, Session } from "@/components/DashboardContext";
@@ -23,8 +24,12 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { setTheme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(true);
   
-  const { sessions, activeSessionId, loadSession, newSession, deleteSession, renameSession, forkSession } = useDashboard();
+  // --- MODIFICATION START: Get necessary data and add loading state ---
+  const { sessions, activeSessionId, nodes, edges, newSession, deleteSession, renameSession, forkSession, loadSession } = useDashboard();
   const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  // --- MODIFICATION END ---
+
 
   const handleExport = () => {
     if (Object.keys(sessions).length === 0) {
@@ -42,6 +47,45 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
+
+  // --- MODIFICATION START: Add report generation handler ---
+  const handleGenerateReport = async () => {
+    if (!activeSessionId || nodes.length === 0) {
+      alert("There's no canvas data to generate a report from.");
+      return;
+    }
+    setIsGeneratingReport(true);
+    try {
+      const response = await fetch('/api/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nodes, edges }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate report: ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const sessionName = sessions[activeSessionId]?.name.replace(/\s+/g, '_') || 'session';
+      link.download = `Cassandra_Report_${sessionName}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error("Report generation failed:", error);
+      alert("Sorry, there was an error generating your report. Please try again.");
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+  // --- MODIFICATION END ---
+
 
   const handleRenameSubmit = (id: string, newName: string) => {
     if (newName && newName.trim() !== "") {
@@ -212,6 +256,16 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 </DropdownMenuTrigger>
                  <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Account</DropdownMenuLabel>
+                    {/* --- MODIFICATION START: Add the new report button --- */}
+                    <DropdownMenuItem onClick={handleGenerateReport} disabled={isGeneratingReport}>
+                      {isGeneratingReport ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <FileText className="mr-2 h-4 w-4" />
+                      )}
+                      <span>{isGeneratingReport ? 'Generating...' : 'Generate Report'}</span>
+                    </DropdownMenuItem>
+                    {/* --- MODIFICATION END --- */}
                     <DropdownMenuItem onClick={handleExport}>
                       <Download className="mr-2 h-4 w-4" />
                       <span>Export Sessions</span>

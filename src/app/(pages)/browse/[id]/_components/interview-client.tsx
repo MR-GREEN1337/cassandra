@@ -1,4 +1,3 @@
-// --- FILE: src/app/(pages)/browse/[id]/_components/interview-client.tsx ---
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -32,20 +31,17 @@ export function InterviewClientPage({ startup }: { startup: StartupFailure }) {
   const [isLoading, setIsLoading] = useState(false);
   const [agentStatus, setAgentStatus] = useState('');
   
-  // --- MODIFICATION START: Use a ref for the scroll viewport ---
   const scrollViewportRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     if (scrollViewportRef.current) {
-      // Use requestAnimationFrame for smoother scrolling after render
       requestAnimationFrame(() => {
         if (scrollViewportRef.current) {
-            scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
+          scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
         }
       });
     }
   }, [messages, agentStatus]);
-  // --- MODIFICATION END ---
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,15 +95,10 @@ export function InterviewClientPage({ startup }: { startup: StartupFailure }) {
   };
 
   return (
-    // --- MODIFICATION START: Add `relative` to the main container ---
-    <div className="flex-1 flex flex-col overflow-hidden relative">
-    {/* --- MODIFICATION END --- */}
-
-      {/* --- MODIFICATION START: Pass the ref to the ScrollArea's viewport --- */}
+    <div className="flex-1 flex flex-col relative overflow-hidden">
+      {/* Chat Messages - with bottom padding to account for fixed input */}
       <ScrollArea className="flex-1" ref={scrollViewportRef}>
-        {/* --- MODIFICATION START: Add padding-bottom to prevent content from being hidden by the absolute footer --- */}
-        <div className="container mx-auto max-w-3xl px-4 pt-8 pb-28">
-        {/* --- MODIFICATION END --- */}
+        <div className="container mx-auto max-w-3xl px-4 pt-8 pb-32">
           <div className="space-y-6">
             {messages.map((msg, index) => (
               <div key={index} className={cn('flex items-start gap-3 w-full', msg.role === 'user' ? 'flex-row-reverse' : 'flex-row')}>
@@ -137,11 +128,10 @@ export function InterviewClientPage({ startup }: { startup: StartupFailure }) {
         </div>
       </ScrollArea>
       
-      {/* --- MODIFICATION START: Position the footer absolutely within the relative parent --- */}
-      <footer className="absolute bottom-0 left-0 right-0 z-10">
-      {/* --- MODIFICATION END --- */}
-        <div className="w-full bg-gradient-to-t from-background via-background/90 to-transparent">
-          <div className="container mx-auto max-w-3xl p-4">
+      {/* Fixed Input Bar */}
+      <div className="absolute bottom-0 left-0 right-0 z-10 h-24">
+        <div className="w-full h-full bg-gradient-to-t from-background via-background/95 to-transparent flex items-end">
+          <div className="container mx-auto max-w-3xl p-4 w-full">
             <form onSubmit={handleSubmit} className="relative">
               <div className="relative">
                 <Textarea
@@ -151,7 +141,7 @@ export function InterviewClientPage({ startup }: { startup: StartupFailure }) {
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); }
                   }}
                   placeholder={`Ask a question about ${startup.companyName}...`}
-                  className="pr-14 pl-4 min-h-[52px] bg-background/80 backdrop-blur-sm border-2 shadow-lg text-base"
+                  className="pr-14 pl-4 min-h-[52px] bg-background/90 backdrop-blur-md border-2 shadow-lg text-base resize-none"
                   rows={1}
                   disabled={isLoading}
                 />
@@ -162,7 +152,7 @@ export function InterviewClientPage({ startup }: { startup: StartupFailure }) {
             </form>
           </div>
         </div>
-      </footer>
+      </div>
     </div>
   );
 }

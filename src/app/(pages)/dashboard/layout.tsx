@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
-// import { useSession, signOut } from "next-auth/react"; // Placeholder for auth
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -12,28 +11,29 @@ import {
   ChevronsUpDown, LayoutGrid, BookUser, CreditCard, Settings, LifeBuoy, LogOut,
   HelpCircle, MessageSquare, PanelLeftClose, PanelLeftOpen, Sun, Moon, FolderKanban,
   Loader2, Plus, Trash2, Download, MoreHorizontal, Pencil, Copy,
-  FileText, // --- MODIFICATION: Import the report icon ---
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DashboardProvider, useDashboard, Session } from "@/components/DashboardContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Logo from "@/components/Logo";
+// --- MODIFICATION 1: Import Toaster and the toast function ---
+import { Toaster, toast } from 'sonner';
 
 // A small component to render the layout content, so it can access the context
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { setTheme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(true);
   
-  // --- MODIFICATION START: Get necessary data and add loading state ---
   const { sessions, activeSessionId, nodes, edges, newSession, deleteSession, renameSession, forkSession, loadSession } = useDashboard();
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
-  // --- MODIFICATION END ---
 
 
   const handleExport = () => {
     if (Object.keys(sessions).length === 0) {
-        alert("No sessions to export.");
+        // --- MODIFICATION 2: Replace alert with toast.warning ---
+        toast.warning("No sessions to export.");
         return;
     }
     const dataStr = JSON.stringify(sessions, null, 2);
@@ -46,15 +46,19 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    // --- MODIFICATION 3: Add a success toast for better UX ---
+    toast.success("Sessions exported successfully!");
   };
 
-  // --- MODIFICATION START: Add report generation handler ---
   const handleGenerateReport = async () => {
     if (!activeSessionId || nodes.length === 0) {
-      alert("There's no canvas data to generate a report from.");
+      // --- MODIFICATION 4: Replace alert with toast.warning ---
+      toast.warning("There's no canvas data to generate a report from.");
       return;
     }
     setIsGeneratingReport(true);
+    // --- MODIFICATION 5: Add an info toast to let the user know it's working ---
+    toast.info("Generating your report... This may take a moment.");
     try {
       const response = await fetch('/api/report', {
         method: 'POST',
@@ -76,15 +80,18 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+      
+      // --- MODIFICATION 6: Add a success toast for the download ---
+      toast.success("Report generated and download has started!");
 
     } catch (error) {
       console.error("Report generation failed:", error);
-      alert("Sorry, there was an error generating your report. Please try again.");
+      // --- MODIFICATION 7: Replace alert with toast.error ---
+      toast.error("Sorry, there was an error generating your report. Please try again.");
     } finally {
       setIsGeneratingReport(false);
     }
   };
-  // --- MODIFICATION END ---
 
 
   const handleRenameSubmit = (id: string, newName: string) => {
@@ -115,6 +122,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <TooltipProvider>
+      {/* --- MODIFICATION 8: Add the Toaster component here --- */}
+      {/* It's invisible but will render any toasts that are fired. */}
+      {/* We can also customize its theme to match your app. */}
+      <Toaster richColors theme={useTheme().theme === 'dark' ? 'dark' : 'light'} />
       <div className="flex h-screen w-full bg-background text-foreground overflow-hidden">
         <aside className={cn(
           "hidden md:flex flex-col border-r bg-muted/40 transition-all duration-300 ease-in-out shrink-0",
@@ -256,7 +267,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 </DropdownMenuTrigger>
                  <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Account</DropdownMenuLabel>
-                    {/* --- MODIFICATION START: Add the new report button --- */}
                     <DropdownMenuItem onClick={handleGenerateReport} disabled={isGeneratingReport}>
                       {isGeneratingReport ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -265,7 +275,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                       )}
                       <span>{isGeneratingReport ? 'Generating...' : 'Generate Report'}</span>
                     </DropdownMenuItem>
-                    {/* --- MODIFICATION END --- */}
                     <DropdownMenuItem onClick={handleExport}>
                       <Download className="mr-2 h-4 w-4" />
                       <span>Export Sessions</span>

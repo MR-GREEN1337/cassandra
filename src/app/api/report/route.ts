@@ -1,9 +1,10 @@
+// --- FILE: src/app/api/report/route.ts ---
+
 import { NextRequest, NextResponse } from 'next/server';
 import { ImageResponse } from '@vercel/og';
 import { marked } from 'marked';
 import OpenAI from 'openai';
-import { CassandraNode } from '@/components/DashboardContext';
-import { Edge } from 'reactflow';
+import { CassandraNode, Edge } from '@/components/DashboardContext';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { jsPDF } from 'jspdf';
@@ -17,7 +18,7 @@ const kimi = new OpenAI({
   baseURL: 'https://api.moonshot.ai/v1',
 });
 
-// Helper function to distill canvas data. (No changes here)
+// Helper function remains the same...
 function distillCanvasData(nodes: CassandraNode[], edges: Edge[]): string {
     let distilledContent = "## Canvas Exploration Summary\n\n";
     const nodeMap = new Map(nodes.map(n => [n.id, n]));
@@ -51,14 +52,13 @@ function distillCanvasData(nodes: CassandraNode[], edges: Edge[]): string {
 export async function POST(req: NextRequest) {
   try {
     const { nodes, edges } = await req.json() as { nodes: CassandraNode[], edges: Edge[] };
-    //@ts-ignore
-    if (!nodes || !nodes.length === 0) {
+
+    if (!nodes || nodes.length === 0) {
       return new NextResponse(JSON.stringify({ error: 'Canvas data is required' }), { status: 400 });
     }
 
     const canvasSummary = distillCanvasData(nodes, edges);
 
-    // Refined prompt to ensure clean Markdown output
     const systemPrompt = `You are Cassandra, an executive-level AI strategist...`; // Unchanged
     const userPrompt = `Synthesize the provided canvas data into a formal 'Path to Survival' report...`; // Unchanged
 
@@ -70,165 +70,48 @@ export async function POST(req: NextRequest) {
 
     const reportMarkdown = response.choices[0].message.content || 'Error: Could not generate report content.';
     
-    // Sanitize and parse markdown
     const cleanMarkdown = reportMarkdown.replace(/&amp;/g, '&');
     const reportHtml = await marked.parse(cleanMarkdown);
 
-    // Professional HTML template with proper text constraints
+    // --- FINAL & ROBUST HTML TEMPLATE ---
+    // This version uses aggressive flexbox styling on all potential parent elements
+    // to satisfy Satori's strict layout requirements.
     const fullHtmlTemplate = `
-      <div style="
-        font-family: 'Inter', system-ui, -apple-system, sans-serif;
-        width: 1120px;
-        height: 1617px;
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        color: #e2e8f0;
-        padding: 0;
-        margin: 0;
-        box-sizing: border-box;
-        position: relative;
-        overflow: hidden;
-      ">
+      <div style="font-family: 'Inter'; display: flex; flex-direction: column; width: 100%; height: 100%; background-color: #111827; color: #e5e7eb; padding: 64px; line-height: 1.6;">
         
-        <!-- Header Section -->
-        <div style="
-          background: linear-gradient(90deg, #1e40af 0%, #3b82f6 100%);
-          padding: 48px 60px;
-          border-bottom: 3px solid #2563eb;
-          position: relative;
-        ">
-          <div style="display: flex; align-items: center; gap: 20px;">
-            <!-- Logo/Icon -->
-            <div style="
-              width: 64px;
-              height: 64px;
-              background: rgba(255,255,255,0.1);
-              border-radius: 12px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              backdrop-filter: blur(10px);
-            ">
-              <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="9" stroke="#fbbf24" stroke-width="2"/>
-                <circle cx="12" cy="12" r="3" fill="#fbbf24"/>
-                <path d="M12 3v6M12 15v6M3 12h6M15 12h6" stroke="#fbbf24" stroke-width="2"/>
-              </svg>
-            </div>
-            
-            <div>
-              <h1 style="
-                font-size: 42px;
-                font-weight: 800;
-                color: #ffffff;
-                margin: 0;
-                line-height: 1.1;
-                letter-spacing: -0.025em;
-              ">CASSANDRA</h1>
-              <p style="
-                font-size: 18px;
-                color: rgba(255,255,255,0.8);
-                margin: 4px 0 0 0;
-                font-weight: 500;
-              ">Strategic Risk Analysis & Path to Survival</p>
-            </div>
-          </div>
-          
-          <!-- Report metadata -->
-          <div style="
-            position: absolute;
-            top: 48px;
-            right: 60px;
-            text-align: right;
-            color: rgba(255,255,255,0.9);
-          ">
-            <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">
-              ${new Date().toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </div>
-            <div style="font-size: 12px; color: rgba(255,255,255,0.7);">
-              CONFIDENTIAL • INTERNAL USE
-            </div>
+        <!-- Header -->
+        <div style="display: flex; align-items: center; gap: 16px; border-bottom: 1px solid #374151; padding-bottom: 24px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56" /><circle cx="12" cy="12" r="1.5" fill="#f59e0b" stroke="none" /></svg>
+          <div style="display: flex; flex-direction: column;">
+            <h1 style="font-size: 32px; font-weight: 700; color: #ffffff; margin: 0; line-height: 1;">Cassandra Report</h1>
+            <p style="font-size: 16px; color: #9ca3af; margin: 0;">Path to Survival Analysis</p>
           </div>
         </div>
 
-        <!-- Content Area -->
-        <div style="
-          padding: 60px;
-          max-width: 1000px;
-          margin: 0 auto;
-        ">
-          <div style="
-            font-size: 16px;
-            line-height: 1.7;
-            color: #cbd5e1;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            hyphens: auto;
-          ">
-            ${reportHtml
-              // Headers with proper spacing and typography
-              .replace(/<h1[^>]*>/g, '<h1 style="font-size: 32px; font-weight: 700; color: #ffffff; margin: 48px 0 24px 0; padding-bottom: 12px; border-bottom: 2px solid #3b82f6; line-height: 1.2;">')
-              .replace(/<h2[^>]*>/g, '<h2 style="font-size: 26px; font-weight: 700; color: #f1f5f9; margin: 40px 0 20px 0; padding-bottom: 8px; border-bottom: 1px solid #475569; line-height: 1.3;">')
-              .replace(/<h3[^>]*>/g, '<h3 style="font-size: 20px; font-weight: 600; color: #e2e8f0; margin: 32px 0 16px 0; line-height: 1.4;">')
-              .replace(/<h4[^>]*>/g, '<h4 style="font-size: 18px; font-weight: 600; color: #cbd5e1; margin: 24px 0 12px 0; line-height: 1.4;">')
-              
-              // Paragraphs with proper text flow
-              .replace(/<p[^>]*>/g, '<p style="margin: 0 0 18px 0; max-width: 100%; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.7;">')
-              
-              // Lists with proper indentation
-              .replace(/<ul[^>]*>/g, '<ul style="margin: 16px 0; padding-left: 24px; list-style-type: disc;">')
-              .replace(/<ol[^>]*>/g, '<ol style="margin: 16px 0; padding-left: 24px; list-style-type: decimal;">')
-              .replace(/<li[^>]*>/g, '<li style="margin: 8px 0; line-height: 1.6; max-width: 100%; word-wrap: break-word;">')
-              
-              // Tables with professional styling
-              .replace(/<table[^>]*>/g, '<table style="width: 100%; border-collapse: collapse; margin: 24px 0; background: rgba(51, 65, 85, 0.3); border-radius: 8px; overflow: hidden;">')
-              .replace(/<thead[^>]*>/g, '<thead style="background: rgba(30, 64, 175, 0.8);">')
-              .replace(/<th[^>]*>/g, '<th style="padding: 16px; text-align: left; font-weight: 600; color: #ffffff; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #475569;">')
-              .replace(/<td[^>]*>/g, '<td style="padding: 16px; border-bottom: 1px solid rgba(71, 85, 105, 0.3); vertical-align: top; word-wrap: break-word;">')
-              .replace(/<tr[^>]*>/g, '<tr style="border-bottom: 1px solid rgba(71, 85, 105, 0.2);">')
-              
-              // Emphasis and links
-              .replace(/<strong[^>]*>/g, '<strong style="font-weight: 700; color: #f1f5f9;">')
-              .replace(/<em[^>]*>/g, '<em style="font-style: italic; color: #94a3b8;">')
-              .replace(/<a[^>]*>/g, '<a style="color: #60a5fa; text-decoration: underline; word-wrap: break-word;">')
-              
-              // Code blocks
-              .replace(/<code[^>]*>/g, '<code style="background: rgba(51, 65, 85, 0.6); padding: 2px 6px; border-radius: 4px; font-family: \'SF Mono\', \'Monaco\', monospace; font-size: 14px; color: #fbbf24;">')
-              .replace(/<pre[^>]*>/g, '<pre style="background: rgba(51, 65, 85, 0.8); padding: 20px; border-radius: 8px; overflow: hidden; margin: 16px 0; border-left: 4px solid #3b82f6;">')
-              
-              // Blockquotes
-              .replace(/<blockquote[^>]*>/g, '<blockquote style="border-left: 4px solid #3b82f6; padding-left: 20px; margin: 20px 0; font-style: italic; color: #94a3b8; background: rgba(51, 65, 85, 0.3); padding: 20px; border-radius: 0 8px 8px 0;">')
-            }
-          </div>
+        <!-- Meta Info -->
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #6b7280; padding: 24px 0; border-bottom: 1px solid #374151; margin-bottom: 40px;">
+          <div style="display: flex; flex-direction: column;"><span style="font-weight: 600;">PREPARED FOR</span><span style="color: #d1d5db;">[Redacted] Founding Team</span></div>
+          <div style="display: flex; flex-direction: column; text-align: center;"><span style="font-weight: 600;">DATE</span><span style="color: #d1d5db;">${new Date().toLocaleDateString('en-US')}</span></div>
+          <div style="display: flex; flex-direction: column; text-align: right;"><span style="font-weight: 600;">CLASSIFICATION</span><span style="color: #d1d5db;">Internal Strategic Brief</span></div>
         </div>
 
-        <!-- Footer -->
-        <div style="
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          height: 60px;
-          background: linear-gradient(90deg, #1e40af 0%, #3b82f6 100%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        ">
-          <div style="
-            font-size: 12px;
-            color: rgba(255,255,255,0.8);
-            font-weight: 500;
-          ">
-            Generated by Cassandra AI • Strategic Analysis Platform
-          </div>
+        <!-- Report Content -->
+        <div style="display: flex; flex-direction: column; flex-grow: 1; font-size: 15px; color: #d1d5db; width: 100%;">
+          ${reportHtml
+            .replace(/<h2/g, '<h2 style="font-size: 20px; font-weight: 600; color: #ffffff; border-bottom: 1px solid #4b5563; padding-bottom: 8px; margin-top: 24px; margin-bottom: 16px; width: 100%; display: flex;"')
+            .replace(/<h3/g, '<h3 style="font-size: 16px; font-weight: 600; color: #e5e7eb; margin-top: 16px; margin-bottom: 8px; width: 100%; display: flex;"')
+            .replace(/<p/g, '<p style="margin-bottom: 16px; width: 100%; display: flex; flex-wrap: wrap; align-items: center;"')
+            .replace(/<ul/g, '<ul style="margin-left: 20px; margin-bottom: 16px; width: 100%; display: flex; flex-direction: column;"')
+            .replace(/<li/g, '<li style="margin-bottom: 8px; width: 100%; display: flex; flex-direction: column;"')
+            .replace(/<table/g, '<table style="width: 100%; border-collapse: collapse; margin-top: 16px;"')
+            .replace(/<th/g, '<th style="border: 1px solid #4b5563; padding: 10px; text-align: left; background-color: #1f2937; font-weight: 600; color: #9ca3af; text-transform: uppercase; font-size: 12px;"')
+            .replace(/<td/g, '<td style="border: 1px solid #4b5563; padding: 10px; display: flex;"')
+          }
         </div>
       </div>
     `;
 
-    const reportJsx: any = html(fullHtmlTemplate);
+    const reportJsx = html(fullHtmlTemplate);
     
     const interRegularPath = path.join(process.cwd(), 'public/assets/Inter-Regular.ttf');
     const interBoldPath = path.join(process.cwd(), 'public/assets/Inter-Bold.ttf');
@@ -238,8 +121,8 @@ export async function POST(req: NextRequest) {
     const imageResponse = new ImageResponse(
       reportJsx,
       {
-        width: 1120,
-        height: 1617,
+        width: 1200,
+        height: 1697,
         fonts: [
           { name: 'Inter', data: interRegular, style: 'normal', weight: 400 },
           { name: 'Inter', data: interBold, style: 'normal', weight: 700 },
@@ -259,7 +142,7 @@ export async function POST(req: NextRequest) {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename="cassandra-strategic-report.pdf"',
+        'Content-Disposition': 'attachment; filename="cassandra-report.pdf"',
       },
     });
 

@@ -1,5 +1,3 @@
-// --- FILE: src/app/(pages)/browse/[id]/page.tsx ---
-
 import prisma from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import { InterviewClientPage } from './_components/interview-client';
@@ -7,7 +5,6 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import { Info } from 'lucide-react';
-// WINNING UI: Import the newly added HoverCard and its parts.
 import {
   HoverCard,
   HoverCardContent,
@@ -36,7 +33,8 @@ export default async function InterviewPage({ params }: { params: { id: string }
   const faviconUrl = startup.sourceUrl ? `https://www.google.com/s2/favicons?sz=64&domain_url=${new URL(startup.sourceUrl).hostname}` : null;
 
   return (
-    <div className="flex flex-col h-screen">
+    // --- MODIFICATION: Make this a full-height flex column ---
+    <div className="flex flex-col h-full">
       <nav className="border-b shrink-0 bg-background/80 backdrop-blur-sm z-10">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3 overflow-hidden">
@@ -52,9 +50,6 @@ export default async function InterviewPage({ params }: { params: { id: string }
             )}
             <div className="flex items-center gap-2 overflow-hidden">
               <h1 className="text-lg font-semibold tracking-tight truncate">{startup.companyName}</h1>
-              
-              {/* WINNING UI: The HoverCard trigger. It's a subtle, professional way to offer more info. */}
-              {/* It signals to the user that there is deeper context available without cluttering the UI. */}
               <HoverCard>
                 <HoverCardTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground shrink-0">
@@ -74,7 +69,6 @@ export default async function InterviewPage({ params }: { params: { id: string }
                   </div>
                 </HoverCardContent>
               </HoverCard>
-
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -89,6 +83,7 @@ export default async function InterviewPage({ params }: { params: { id: string }
         </div>
       </nav>
       
+      {/* The InterviewClientPage will now correctly fill the remaining space */}
       <InterviewClientPage startup={startup} />
     </div>
   );

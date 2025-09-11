@@ -37,7 +37,7 @@ export function InterviewClientPage({ startup }: { startup: StartupFailure }) {
     if (scrollViewportRef.current) {
       requestAnimationFrame(() => {
         if (scrollViewportRef.current) {
-          scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
+            scrollViewportRef.current.scrollTop = scrollViewportRef.current.scrollHeight;
         }
       });
     }
@@ -51,7 +51,6 @@ export function InterviewClientPage({ startup }: { startup: StartupFailure }) {
     setMessages(newMessages);
     setInput('');
     setIsLoading(true);
-
     setAgentStatus('Searching internal notes...');
     await new Promise(res => setTimeout(res, 900));
     setAgentStatus('Consulting web sources for additional context...');
@@ -62,11 +61,8 @@ export function InterviewClientPage({ startup }: { startup: StartupFailure }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ startupId: startup.id, messages: newMessages.filter(m => m.role !== 'system'), }),
       });
-
       setAgentStatus('');
-
       if (!response.ok || !response.body) { throw new Error(`API error: ${response.statusText}`); }
-
       setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -74,7 +70,6 @@ export function InterviewClientPage({ startup }: { startup: StartupFailure }) {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
         const chunk = decoder.decode(value, { stream: true });
         setMessages((prev) => {
           const lastMessage = prev[prev.length - 1];
@@ -95,10 +90,12 @@ export function InterviewClientPage({ startup }: { startup: StartupFailure }) {
   };
 
   return (
-    <div className="flex-1 flex flex-col relative overflow-hidden">
-      {/* Chat Messages - with bottom padding to account for fixed input */}
-      <ScrollArea className="flex-1" ref={scrollViewportRef}>
-        <div className="container mx-auto max-w-3xl px-4 pt-8 pb-32">
+    // --- MODIFICATION: This component will grow to fill its parent and manage its children with flexbox ---
+    <div className="flex-1 flex flex-col overflow-hidden">
+      
+      {/* This ScrollArea grows to fill available space, enabling its own scrollbar */}
+      <ScrollArea className="flex-1" viewportRef={scrollViewportRef}>
+        <div className="container mx-auto max-w-3xl px-4 pt-8 pb-8">
           <div className="space-y-6">
             {messages.map((msg, index) => (
               <div key={index} className={cn('flex items-start gap-3 w-full', msg.role === 'user' ? 'flex-row-reverse' : 'flex-row')}>
@@ -128,18 +125,16 @@ export function InterviewClientPage({ startup }: { startup: StartupFailure }) {
         </div>
       </ScrollArea>
       
-      {/* Fixed Input Bar */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 h-24">
-        <div className="w-full h-full bg-gradient-to-t from-background via-background/95 to-transparent flex items-end">
-          <div className="container mx-auto max-w-3xl p-4 w-full">
+      {/* This footer takes its natural height and does not shrink */}
+      <footer className="shrink-0">
+        <div className="w-full bg-gradient-to-t from-background via-background/95 to-transparent">
+          <div className="container mx-auto max-w-3xl p-4">
             <form onSubmit={handleSubmit} className="relative">
               <div className="relative">
                 <Textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); }
-                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
                   placeholder={`Ask a question about ${startup.companyName}...`}
                   className="pr-14 pl-4 min-h-[52px] bg-background/90 backdrop-blur-md border-2 shadow-lg text-base resize-none"
                   rows={1}
@@ -152,7 +147,7 @@ export function InterviewClientPage({ startup }: { startup: StartupFailure }) {
             </form>
           </div>
         </div>
-      </div>
+      </footer>
     </div>
   );
 }

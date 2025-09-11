@@ -4,11 +4,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ImageResponse } from '@vercel/og';
 import { marked } from 'marked';
 import OpenAI from 'openai';
-import { CassandraNode, Edge } from '@/components/DashboardContext';
+import { CassandraNode } from '@/components/DashboardContext';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { jsPDF } from 'jspdf';
 import { html } from 'satori-html';
+import { Edge } from 'reactflow';
 
 // We must use the Node.js runtime for fs and jspdf
 // export const runtime = 'edge';
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest) {
       </div>
     `;
 
-    const reportJsx = html(fullHtmlTemplate);
+    const reportJsx: any = html(fullHtmlTemplate);
     
     const interRegularPath = path.join(process.cwd(), 'public/assets/Inter-Regular.ttf');
     const interBoldPath = path.join(process.cwd(), 'public/assets/Inter-Bold.ttf');

@@ -98,19 +98,15 @@ cp .env.example .env
 Now, fill in the `.env` file with your API keys and database credentials:
 
 ```env
-# TiDB Serverless Connection
-TIDB_HOST="your_tidb_host.tidbcloud.com"
-TIDB_PORT=4000
-TIDB_USER="your_user.root"
-TIDB_PASSWORD="your_password"
-TIDB_DATABASE="cassandra"
-
 # LLM & Embedding APIs
 MOONSHOT_API_KEY="your_kimi_api_key"
 OPENAI_API_KEY="your_openai_api_key"
 
 # This is required for Prisma to generate the client
 DATABASE_URL="mysql://${TIDB_USER}:${TIDB_PASSWORD}@${TIDB_HOST}:${TIDB_PORT}/${TIDB_DATABASE}?sslaccept=strict"
+
+TAVILY_API_KEY="your_tavily_api_key"
+
 ```
 
 #### 4. Prisma Setup
@@ -135,7 +131,7 @@ The application will be available at `http://localhost:3000`.
 The `/data-agent` directory contains the Python agent used to populate the TiDB database. If you want to run it yourself to add more data:
 
 1.  Navigate to the directory: `cd data-agent`
-2.  Install dependencies: `uv pip install -r requirements.txt`
+2.  Install dependencies: `uv sync`
 3.  Set up your `.env` file with `TAVILY_API_KEY` and `GOOGLE_API_KEY`.
 4.  Download the TiDB CA certificate into this directory as `ca.pem`.
 5.  Run the agent: `uv run main.py`

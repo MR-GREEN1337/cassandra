@@ -132,9 +132,22 @@ The `/data-agent` directory contains the Python agent used to populate the TiDB 
 
 1.  Navigate to the directory: `cd data-agent`
 2.  Install dependencies: `uv sync`
-3.  Set up your `.env` file with `TAVILY_API_KEY` and `GOOGLE_API_KEY`.
-4.  Download the TiDB CA certificate into this directory as `ca.pem`.
-5.  Run the agent: `uv run main.py`
+3.  Set up your `.env` file with the following variables:
+
+```env
+GOOGLE_API_KEY="your-google-api-key"
+TAVILY_API_KEY="your-tavily-api-key"
+OPENAI_API_KEY="your-openai-api-key"
+
+# TiDB Connection Details
+TIDB_HOST="your-gateway-region.aws.tidbcloud.com"
+TIDB_PORT="4000"
+TIDB_USER="your-prefix.root"
+TIDB_PASSWORD="your-tidb-password"
+TIDB_DATABASE="test"
+```
+
+4.  Run the agent: `uv run main.py`
 
 ### License
 

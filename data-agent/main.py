@@ -121,7 +121,7 @@ async def fetch_tasks_from_frontier(limit: int) -> List[str]:
 async def analyst_agent(query: str, search_results: List[Dict]) -> List[Dict]:
     """UPGRADED Analyst Stage: Extracts detailed data including the source URL."""
     print(f"  -> Analyzing (Pro): {query}")
-    model = genai.GenerativeModel('gemini-1.5-pro-latest', generation_config={"response_mime_type": "application/json"})
+    model = genai.GenerativeModel(settings.GEMINI_MODEL_NAME, generation_config={"response_mime_type": "application/json"})
     
     context = "\n\n".join([f"Source URL: {res['url']}\nContent: {res['content']}" for res in search_results])
     

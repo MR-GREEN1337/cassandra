@@ -21,9 +21,9 @@ export default async function BrowsePage({
   const whereClause = searchQuery
     ? {
       OR: [
-        { companyName: { contains: searchQuery, mode: 'insensitive' } },
-        { failureReason: { contains: searchQuery, mode: 'insensitive' } },
-        { keyTakeaway: { contains: searchQuery, mode: 'insensitive' } },
+        { companyName: { contains: searchQuery } },
+        { failureReason: { contains: searchQuery } },
+        { keyTakeaway: { contains: searchQuery } },
       ],
     }
     : {};

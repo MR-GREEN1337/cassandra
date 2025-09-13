@@ -193,7 +193,12 @@ async def loader_task(case: Dict, existing_companies: Set[str]):
     if not company_name or company_name.lower() in existing_companies:
         return 0
     
-    text_to_embed = case.get("what_went_wrong")
+    text_to_embed = f"""
+    {case.get('what_they_did', '')} 
+    {case.get('what_went_wrong', '')} 
+    {case.get('what_went_wrong', '')}  # Repeat important parts
+    {case.get('key_takeaway', '')}
+    """
     if not text_to_embed:
         return 0
 

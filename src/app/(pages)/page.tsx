@@ -508,7 +508,7 @@ const ContactContent = () => {
         Cassandra is a project born from a passion for helping founders succeed. We are constantly evolving and would love to hear your feedback, questions, or ideas.
       </p>
       <div className="pt-4">
-        <a href="mailto:contact@example.com">
+        <a href="mailto:islam.hachimi2003@gmail.com">
           <button
             className="w-full rounded-full bg-white text-black font-medium py-3 hover:bg-white/90 transition-colors flex items-center justify-center gap-3"
           >

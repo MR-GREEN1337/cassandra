@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { FaviconLink } from '@/components/FaviconLink';
-import { StartupFailure } from '@/generated/prisma';
+import { StartupFailure } from '@prisma/client';
 
 interface Message {
   role: 'user' | 'assistant' | 'system';

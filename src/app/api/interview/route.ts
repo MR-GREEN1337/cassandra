@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import prisma from '@/lib/prisma';
 import { tavily as TavilyClient } from '@tavily/core';
-import { StartupFailure } from '@/generated/prisma';
+import { StartupFailure } from '@prisma/client';
 
 const kimi = new OpenAI({
   apiKey: process.env.MOONSHOT_API_KEY,

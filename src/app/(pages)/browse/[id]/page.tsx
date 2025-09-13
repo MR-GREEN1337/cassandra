@@ -12,8 +12,8 @@ import {
 } from "@/components/ui/hover-card";
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { StartupFailure } from '@/generated/prisma';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { StartupFailure } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 

@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
             company_name: item.companyName,
             failure_reason: item.failureReason,
             summary: item.summary,
-            source_url: item.source_url
+            source_url: item.sourceUrl
         }));
     }
 

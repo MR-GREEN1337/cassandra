@@ -1,3 +1,5 @@
+// src/app/(pages)/dashboard/layout.tsx
+
 "use client";
 
 import React, { useState, useMemo } from "react";
@@ -17,10 +19,8 @@ import { cn } from "@/lib/utils";
 import { DashboardProvider, useDashboard, Session } from "@/components/DashboardContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Logo from "@/components/Logo";
-// --- MODIFICATION 1: Import Toaster and the toast function ---
 import { Toaster, toast } from 'sonner';
 
-// A small component to render the layout content, so it can access the context
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { setTheme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(true);
@@ -32,7 +32,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   const handleExport = () => {
     if (Object.keys(sessions).length === 0) {
-        // --- MODIFICATION 2: Replace alert with toast.warning ---
         toast.warning("No sessions to export.");
         return;
     }
@@ -46,18 +45,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    // --- MODIFICATION 3: Add a success toast for better UX ---
     toast.success("Sessions exported successfully!");
   };
 
   const handleGenerateReport = async () => {
     if (!activeSessionId || nodes.length === 0) {
-      // --- MODIFICATION 4: Replace alert with toast.warning ---
       toast.warning("There's no canvas data to generate a report from.");
       return;
     }
     setIsGeneratingReport(true);
-    // --- MODIFICATION 5: Add an info toast to let the user know it's working ---
     toast.info("Generating your report... This may take a moment.");
     try {
       const response = await fetch('/api/report', {
@@ -81,12 +77,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
-      // --- MODIFICATION 6: Add a success toast for the download ---
       toast.success("Report generated and download has started!");
 
     } catch (error) {
       console.error("Report generation failed:", error);
-      // --- MODIFICATION 7: Replace alert with toast.error ---
       toast.error("Sorry, there was an error generating your report. Please try again.");
     } finally {
       setIsGeneratingReport(false);
@@ -122,9 +116,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   return (
     <TooltipProvider>
-      {/* --- MODIFICATION 8: Add the Toaster component here --- */}
-      {/* It's invisible but will render any toasts that are fired. */}
-      {/* We can also customize its theme to match your app. */}
       <Toaster richColors theme={useTheme().theme === 'dark' ? 'dark' : 'light'} />
       <div className="flex h-screen w-full bg-background text-foreground overflow-hidden">
         <aside className={cn(
@@ -157,23 +148,30 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                             )}
                           >
                             <MessageSquare className="h-4 w-4 shrink-0" />
-                            <div className={cn("flex-1 min-w-0 flex items-center", isCollapsed && "hidden")}>
-                              {renamingId === session.id ? (
-                                 <input
-                                   type="text"
-                                   defaultValue={session.name}
-                                   className="flex-1 min-w-0 bg-transparent border border-primary rounded-md px-1 py-0 text-sm focus:outline-none"
-                                   autoFocus
-                                   onClick={(e) => e.stopPropagation()}
-                                   onBlur={(e) => handleRenameSubmit(session.id, e.target.value)}
-                                   onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                                 />
-                               ) : (
-                                 <span className="flex-1 truncate min-w-0">
-                                   {session.name}
-                                 </span>
-                               )}
-                              <div className="ml-2 opacity-0 group-hover:opacity-100 shrink-0">
+                            {/* --- MODIFICATION START: The container for the name and menu is now a flex container --- */}
+                            <div className={cn("flex-1 min-w-0 flex items-center justify-between", isCollapsed && "hidden")}>
+                              {/* --- MODIFICATION: This new div will grow and truncate its content --- */}
+                              <div className="flex-1 min-w-0 truncate">
+                                {renamingId === session.id ? (
+                                   <input
+                                     type="text"
+                                     defaultValue={session.name}
+                                     // --- MODIFICATION: Input now fills its container ---
+                                     className="w-full bg-transparent border border-primary rounded-md px-1 py-0 text-sm focus:outline-none"
+                                     autoFocus
+                                     onClick={(e) => e.stopPropagation()}
+                                     onBlur={(e) => handleRenameSubmit(session.id, e.target.value)}
+                                     onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                                   />
+                                 ) : (
+                                   // --- MODIFICATION: Removed redundant classes, it inherits truncation ---
+                                   <span>
+                                     {session.name}
+                                   </span>
+                                 )}
+                              </div>
+                              {/* --- MODIFICATION: This div now contains just the menu --- */}
+                              <div className="ml-2 opacity-0 group-hover:opacity-100 flex-shrink-0">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={e => e.stopPropagation()}>
@@ -198,6 +196,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                                 </DropdownMenu>
                               </div>
                             </div>
+                            {/* --- MODIFICATION END --- */}
                           </div>
                         </TooltipTrigger>
                         {isCollapsed && (<TooltipContent side="right">{session.name}</TooltipContent>)}
@@ -295,7 +294,6 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   )
 }
 
-// The main layout component wraps its children in the provider
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <DashboardProvider>

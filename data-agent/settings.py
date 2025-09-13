@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     TAVILY_API_KEY: SecretStr
     OPENAI_API_KEY: SecretStr
 
-    GEMINI_MODEL_NAME: str = "gemini-2.5-pro"
+    GEMINI_MODEL_NAME: str = "gemini-2.5-flash"
 
     # TiDB Connection Details
     TIDB_HOST: str

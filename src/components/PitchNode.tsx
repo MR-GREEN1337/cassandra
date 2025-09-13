@@ -6,12 +6,13 @@ import Image from 'next/image';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
-import { ArrowRight, Plus, Loader2, SendHorizonal, Paperclip, X, Mic, AlertTriangle } from 'lucide-react';
+import { ArrowRight, Plus, Loader2, SendHorizonal, Paperclip, X, Mic, AlertTriangle, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAudioInput } from '@/hooks/use-audio-input';
 import { PitchNodeData, Risk } from './DashboardContext';
 // WINNING DETAIL: Import the new reusable FaviconLink component.
 import { FaviconLink } from './FaviconLink';
+import { toast } from 'sonner';
 
 // --- Custom renderer for Markdown links now uses our reusable component ---
 // WINNING DETAIL: This refactor simplifies the renderer and ensures visual consistency across the app.
@@ -76,7 +77,6 @@ const loadingSteps = [
 ];
 
 const PitchNode: React.FC<NodeProps<PitchNodeData>> = (node) => {
-  // ... (The rest of the PitchNode component remains exactly the same as the previous version)
   const { id, data } = node;
   const [currentPitch, setCurrentPitch] = useState(data.pitch || '');
   const [file, setFile] = useState<File | null>(null);
@@ -135,6 +135,37 @@ const PitchNode: React.FC<NodeProps<PitchNodeData>> = (node) => {
     }
   };
 
+  // --- MODIFICATION START: New handler for copying content ---
+  const handleCopyContent = async () => {
+    if (data.isLoading || !data.response) return;
+
+    let contentToCopy = `PITCH:\n"${data.pitch}"\n\n`;
+
+    if (data.structuredResponse?.risk_analysis) {
+        contentToCopy += "--- PRIMARY RISKS IDENTIFIED ---\n";
+        data.structuredResponse.risk_analysis.forEach(risk => {
+            contentToCopy += `\n[Risk: ${risk.risk_name} | Score: ${risk.score}/10]\n`;
+            contentToCopy += `Summary: ${risk.summary}\n`;
+        });
+    }
+
+    if (data.response) {
+        contentToCopy += "\n--- DETAILED ANALYSIS ---\n";
+        // A simple regex to strip markdown links for a cleaner text copy
+        const cleanResponse = data.response.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+        contentToCopy += cleanResponse;
+    }
+
+    try {
+        await navigator.clipboard.writeText(contentToCopy.trim());
+        toast.success("Analysis copied to clipboard!");
+    } catch (err) {
+        console.error("Failed to copy content to clipboard:", err);
+        toast.error("Could not copy content.");
+    }
+  };
+  // --- MODIFICATION END ---
+
   const isAnalysisComplete = !data.isLoading && data.response && data.response.length > 0;
   const hasAnalysisStarted = data.isLoading || !!data.response || !!data.structuredResponse;
 
@@ -147,15 +178,22 @@ const PitchNode: React.FC<NodeProps<PitchNodeData>> = (node) => {
     >
       <Handle type="target" position={Position.Top} className="!w-full !h-2 !-top-1 !bg-transparent !border-none" />
 
+      {/* --- MODIFICATION START: Update the header button --- */}
       <div className="flex items-center justify-between p-3 border-b border-zinc-200 dark:border-zinc-700 flex-shrink-0">
           <div className="flex items-center gap-2">
               <Image src="/kimi.png" alt="Kimi Logo" width={20} height={20}/>
               <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">Kimi K2 Turbo</span>
           </div>
-          <button className="p-1 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" title="New Chat (coming soon)">
-              <Plus size={16} />
+          <button 
+            onClick={handleCopyContent}
+            disabled={!isAnalysisComplete}
+            className="p-1 rounded-md text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+            title={isAnalysisComplete ? "Copy Analysis" : "Analysis must be complete to copy"}
+          >
+              <Copy size={16} />
           </button>
       </div>
+      {/* --- MODIFICATION END --- */}
 
       {data.contextTitle && (
           <div className="flex items-center gap-2 p-3 border-b border-zinc-200 dark:border-zinc-700 text-xs text-zinc-500 dark:text-zinc-400 flex-shrink-0">

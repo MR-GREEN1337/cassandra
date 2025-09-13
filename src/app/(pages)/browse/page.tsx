@@ -6,6 +6,7 @@ import { SmartPagination } from './_components/smart-pagination';
 import Logo from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -44,9 +45,12 @@ export default async function BrowsePage({
       <nav className="border-b sticky top-0 bg-background/80 backdrop-blur-sm z-20">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
           <Logo />
-          <Button asChild>
-            <Link href="/dashboard">Back to Canvas</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle/>
+            <Button asChild>
+              <Link href="/dashboard">Back to Canvas</Link>
+            </Button>
+          </div>
         </div>
       </nav>
       <div className="container mx-auto px-4 py-8">

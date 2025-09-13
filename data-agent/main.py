@@ -49,7 +49,7 @@ finally:
         print("\nConnection closed.")
 
 # --- Agent Parameters ---
-RESEARCH_ITERATIONS = 20
+RESEARCH_ITERATIONS = 30
 BATCH_SIZE = 5
 SEMAPHORE = asyncio.Semaphore(5)
 SEED_TOPICS = [
@@ -208,7 +208,7 @@ async def loader_task(case: Dict, existing_companies: Set[str]):
             await cursor.execute(
                 """
                 INSERT INTO startup_failures 
-                (company_name, failure_reason, summary, what_they_did, what_went_wrong, key_takeaway, sourceUrl, summary_vector) 
+                (company_name, failure_reason, summary, what_they_did, what_went_wrong, key_takeaway, source_url, summary_vector) 
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (

@@ -13,13 +13,13 @@ const kimi = new OpenAI({
 
 const tavily = TavilyClient({ apiKey: process.env.TAVILY_API_KEY });
 
-// Define a type for the raw query result
+// Define a type for the raw query result to ensure consistency
 type FailureCaseResult = {
   id: number;
   company_name: string;
-  failure_reason: string;
-  summary: string;
-  sourceUrl: string | null;
+  failure_reason: string | null;
+  summary: string | null;
+  source_url: string | null;
   distance?: number;
   score?: number;
 };
@@ -64,27 +64,29 @@ export async function POST(req: NextRequest) {
     
     // Query 1: Vector Search (for conceptual similarity)
     const pitchVector = await generateEmbedding(textForEmbedding);
-    
-    // FIX 1: Use the vector directly as a string parameter for MySQL vector functions
     const vectorString = `[${pitchVector.join(',')}]`;
     
-    const vectorSearchPromise = prisma.$queryRaw<FailureCaseResult[]>`
-      SELECT id, company_name, failure_reason, summary, sourceUrl,
-             VEC_COSINE_DISTANCE(summary_vector, ${vectorString}) as distance
-      FROM startup_failures
-      ORDER BY distance ASC
-      LIMIT 3
-    `;
+    // This query is now correct because the schema has been fixed.
+    const vectorSearchPromise = prisma.$queryRawUnsafe<FailureCaseResult[]>(
+      `SELECT id, company_name, failure_reason, summary, source_url,
+              VEC_COSINE_DISTANCE(summary_vector, '${vectorString}') as distance
+       FROM startup_failures
+       ORDER BY distance ASC
+       LIMIT 3`
+    );
 
-    // Query 2: Full-Text Search (for factual/keyword similarity)
-    const fullTextSearchPromise = prisma.$queryRaw<FailureCaseResult[]>`
-        SELECT id, company_name, failure_reason, summary, sourceUrl,
-               MATCH(company_name, failure_reason, summary, what_went_wrong) AGAINST(${pitch} IN NATURAL LANGUAGE MODE) as score
-        FROM startup_failures 
-        WHERE MATCH(company_name, failure_reason, summary, what_went_wrong) AGAINST(${pitch} IN NATURAL LANGUAGE MODE)
-        ORDER BY score DESC 
-        LIMIT 3
-    `;
+    const fullTextSearchPromise = prisma.startupFailure.findMany({
+        where: {
+            OR: [
+                { companyName: { contains: pitch } },
+                { failureReason: { contains: pitch } },
+                { summary: { contains: pitch } },
+                { whatWentWrong: { contains: pitch } },
+            ],
+        },
+        take: 3,
+    });
+
 
     // Execute both queries in parallel with error handling
     const [vectorResults, textResults] = await Promise.allSettled([
@@ -94,7 +96,18 @@ export async function POST(req: NextRequest) {
 
     // Handle results safely
     const validVectorResults: FailureCaseResult[] = vectorResults.status === 'fulfilled' ? vectorResults.value : [];
-    const validTextResults: FailureCaseResult[] = textResults.status === 'fulfilled' ? textResults.value : [];
+    
+    let validTextResults: FailureCaseResult[] = [];
+    if (textResults.status === 'fulfilled') {
+        validTextResults = textResults.value.map(item => ({
+            id: item.id,
+            company_name: item.companyName,
+            failure_reason: item.failureReason,
+            summary: item.summary,
+            source_url: item.source_url
+        }));
+    }
+
 
     // Log any errors for debugging
     if (vectorResults.status === 'rejected') {
@@ -115,7 +128,7 @@ export async function POST(req: NextRequest) {
     });
     
     const dbContext = Array.from(combinedResults.values())
-      .map(row => `- Company: ${row.company_name} (Source: ${row.sourceUrl || '#no-source'})\n  Reason for Failure: ${row.failure_reason}\n  Summary: ${row.summary}`)
+      .map(row => `- Company: ${row.company_name} (Source: ${row.source_url || '#no-source'})\n  Reason for Failure: ${row.failure_reason}\n  Summary: ${row.summary}`)
       .join('\n\n');
       
     if (dbContext) {
@@ -123,12 +136,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Agent Step 2.5: TARGETED DEEP-DIVE on source URLs with Tavily
-    const sourceUrls = Array.from(combinedResults.values())
-        .map(r => r.sourceUrl)
+    const source_urls = Array.from(combinedResults.values())
+        .map(r => r.source_url)
         .filter((url): url is string => url !== null && url.startsWith('http'));
 
-    if (sourceUrls.length > 0) {
-        const researchPromises = sourceUrls.map(url => 
+    if (source_urls.length > 0) {
+        const researchPromises = source_urls.map(url => 
             tavily.search(`Summarize the key failure points and root causes from this article: ${url}`, { search_depth: 'basic' })
         );
         const researchResults = await Promise.allSettled(researchPromises);
@@ -136,7 +149,7 @@ export async function POST(req: NextRequest) {
         const deepDiveContext = researchResults
             .map((res, i) => {
                 if (res.status === 'fulfilled' && res.value.results.length > 0) {
-                    return `Source: ${sourceUrls[i]}\nContent: ${res.value.results[0].content}`;
+                    return `Source: ${source_urls[i]}\nContent: ${res.value.results[0].content}`;
                 }
                 return null;
             })
@@ -203,7 +216,6 @@ export async function POST(req: NextRequest) {
       async start(controller) {
         for await (const chunk of stream) {
           const content = chunk.choices[0]?.delta?.content || '';
-          console.log(content);
           controller.enqueue(new TextEncoder().encode(content));
         }
         controller.close();

@@ -17,6 +17,7 @@ find src -type f \( -name "*.ts" -o -name "*.tsx" \) -exec sh -c '
   echo "File: $1" >> claude_context.txt && cat "$1" >> claude_context.txt && echo -e "\n-e\n" >> claude_context.txt
 ' sh {} \;
 
+
 # --- Step 4: Append Directory Trees & Final Prompt ---
 echo "[4/4] Appending directory trees and project prompt..."
 {

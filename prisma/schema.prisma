@@ -18,7 +18,6 @@ model StartupFailure {
   whatWentWrong   String? @map("what_went_wrong") @db.Text
   keyTakeaway     String? @map("key_takeaway") @db.Text
   
-  // This line must have the correct mapping with an underscore.
   sourceUrl       String? @map("source_url")
   
   summary_vector  Unsupported("Vector(1536)")?

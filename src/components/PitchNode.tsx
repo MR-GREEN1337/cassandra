@@ -78,24 +78,42 @@ const loadingSteps = [
 
 const PitchNode: React.FC<NodeProps<PitchNodeData>> = (node) => {
   const { id, data } = node;
-  const [currentPitch, setCurrentPitch] = useState(data.pitch || '');
+  const [committedPitch, setCommittedPitch] = useState(data.pitch || '');
+  const [liveTranscript, setLiveTranscript] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [isEditing, setIsEditing] = useState(!data.pitch);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loadingMessage, setLoadingMessage] = useState(loadingSteps[0]);
+  
+  const currentPitch = (committedPitch.trim() ? committedPitch.trim() + ' ' : '') + liveTranscript;
 
-  const handleTranscript = (transcript: string) => {
-    setCurrentPitch(prev => prev + transcript + ' ');
-    setIsEditing(true);
+  const handleFinalTranscript = (transcript: string) => {
+    setCommittedPitch(prev => (prev.trim() ? prev.trim() + ' ' : '') + transcript.trim());
+    setLiveTranscript('');
   };
 
-  const { isListening, toggleListening, error } = useAudioInput(handleTranscript);
+  const handleInterimTranscript = (transcript: string) => {
+    setLiveTranscript(transcript);
+  };
+
+  const { isListening, toggleListening, error } = useAudioInput(
+    handleFinalTranscript,
+    handleInterimTranscript
+  );
 
   useEffect(() => {
-    setCurrentPitch(data.pitch || '');
+    setCommittedPitch(data.pitch || '');
     if (data.pitch) setIsEditing(!!data.pitch && !data.response);
   }, [data.pitch, data.response]);
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (isListening) {
+      toggleListening();
+    }
+    setLiveTranscript('');
+    setCommittedPitch(e.target.value);
+  };
 
 
   useEffect(() => {
@@ -129,9 +147,13 @@ const PitchNode: React.FC<NodeProps<PitchNodeData>> = (node) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if ((currentPitch.trim() || file) && !data.isLoading) {
+    const finalPitch = (committedPitch.trim() ? committedPitch.trim() + ' ' : '') + liveTranscript.trim();
+    if ((finalPitch.trim() || file) && !data.isLoading) {
       setIsEditing(false);
-      data.onAnalysis(id, currentPitch, file);
+      data.onAnalysis(id, finalPitch.trim(), file);
+      setLiveTranscript('');
+      // Update the committed pitch to reflect the submitted value
+      setCommittedPitch(finalPitch.trim());
     }
   };
 
@@ -218,7 +240,7 @@ const PitchNode: React.FC<NodeProps<PitchNodeData>> = (node) => {
             <div className="relative">
               <div className="min-h-[60px]" onClick={() => setIsEditing(true)}>
                 {isEditing || currentPitch ? (
-                  <textarea ref={textAreaRef} value={currentPitch} onChange={(e) => setCurrentPitch(e.target.value)} onBlur={() => { if (!currentPitch) setIsEditing(false); }} className="w-full bg-transparent border-none p-0 pt-2 text-sm focus:outline-none focus:ring-0 resize-none overflow-hidden" rows={1}/>
+                  <textarea ref={textAreaRef} value={currentPitch} onChange={handleTextChange} onBlur={() => { if (!currentPitch) setIsEditing(false); }} className="w-full bg-transparent border-none p-0 pt-2 text-sm focus:outline-none focus:ring-0 resize-none overflow-hidden" rows={1}/>
                 ) : (
                   <p className="text-zinc-500 dark:placeholder-zinc-400 cursor-text absolute top-2 left-0">
                     Describe your startup idea, or attach a file...

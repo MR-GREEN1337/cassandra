@@ -24,7 +24,7 @@ import { Toaster, toast } from 'sonner';
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { setTheme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(true);
-  
+
   const { sessions, activeSessionId, nodes, edges, newSession, deleteSession, renameSession, forkSession, loadSession } = useDashboard();
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
@@ -32,8 +32,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
   const handleExport = () => {
     if (Object.keys(sessions).length === 0) {
-        toast.warning("No sessions to export.");
-        return;
+      toast.warning("No sessions to export.");
+      return;
     }
     const dataStr = JSON.stringify(sessions, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -76,7 +76,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
+
       toast.success("Report generated and download has started!");
 
     } catch (error) {
@@ -99,7 +99,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const sessionGroups = useMemo(() => {
     const groups: { [key: string]: Session[] } = { Today: [], Yesterday: [], "Previous 7 Days": [], "Older": [] };
     const today = new Date(); const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1); const sevenDaysAgo = new Date(today); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
+
     Object.values(sessions)
       .filter(Boolean)
       .sort((a, b) => b.createdAt - a.createdAt)
@@ -109,7 +109,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         else if (sessionDate.toDateString() === yesterday.toDateString()) groups.Yesterday.push(session);
         else if (sessionDate > sevenDaysAgo) groups["Previous 7 Days"].push(session);
         else groups.Older.push(session);
-    });
+      });
     return groups;
   }, [sessions]);
 
@@ -122,134 +122,132 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           "hidden md:flex flex-col border-r bg-muted/40 transition-all duration-300 ease-in-out shrink-0",
           isCollapsed ? "w-[56px]" : "w-[240px]"
         )}>
-           <div className={cn("flex h-14 items-center border-b px-4")}>
+          <div className={cn("flex h-14 items-center border-b px-4")}>
             <Logo hideText={isCollapsed} />
-           </div>
-           <div className="p-2">
-             <Button onClick={newSession} className="w-full" variant="outline" size={isCollapsed ? "icon" : "default"}>
-                <Plus className="h-4 w-4" />
-                <span className={cn("ml-2", isCollapsed && "hidden")}>New Session</span>
-             </Button>
-           </div>
-           <ScrollArea className="flex-1 px-2">
-             {Object.entries(sessionGroups).map(([groupName, groupSessions]) => ( groupSessions.length > 0 && (
-                <div key={groupName} className="py-2">
-                  <h3 className={cn("text-xs font-semibold text-muted-foreground px-2 mb-2", isCollapsed && "text-center")}>{isCollapsed ? groupName.substring(0,1) : groupName}</h3>
-                  <div className="space-y-1">
-                    {groupSessions.map(session => (
-                      <Tooltip key={session.id} delayDuration={0}>
-                        <TooltipTrigger asChild>
-                          <div
-                            onClick={() => { if (renamingId !== session.id) loadSession(session.id); }}
-                            className={cn(
-                              "group flex items-center gap-3 rounded-md px-3 py-2 text-sm cursor-pointer transition-all hover:bg-accent hover:text-accent-foreground min-w-0",
-                              activeSessionId === session.id ? "bg-accent text-accent-foreground" : "text-muted-foreground",
-                              isCollapsed && "justify-center"
-                            )}
-                          >
-                            <MessageSquare className="h-4 w-4 shrink-0" />
-                            {/* --- MODIFICATION START: The container for the name and menu is now a flex container --- */}
-                            <div className={cn("flex-1 min-w-0 flex items-center justify-between", isCollapsed && "hidden")}>
-                              {/* --- MODIFICATION: This new div will grow and truncate its content --- */}
-                              <div className="flex-1 min-w-0 truncate">
-                                {renamingId === session.id ? (
-                                   <input
-                                     type="text"
-                                     defaultValue={session.name}
-                                     // --- MODIFICATION: Input now fills its container ---
-                                     className="w-full bg-transparent border border-primary rounded-md px-1 py-0 text-sm focus:outline-none"
-                                     autoFocus
-                                     onClick={(e) => e.stopPropagation()}
-                                     onBlur={(e) => handleRenameSubmit(session.id, e.target.value)}
-                                     onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                                   />
-                                 ) : (
-                                   // --- MODIFICATION: Removed redundant classes, it inherits truncation ---
-                                   <span>
-                                     {session.name}
-                                   </span>
-                                 )}
-                              </div>
-                              {/* --- MODIFICATION: This div now contains just the menu --- */}
-                              <div className="ml-2 opacity-0 group-hover:opacity-100 flex-shrink-0">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={e => e.stopPropagation()}>
-                                      <MoreHorizontal className="h-4 w-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent onClick={e => e.stopPropagation()} align="end" className="w-40">
-                                    <DropdownMenuItem onClick={() => setRenamingId(session.id)}>
-                                      <Pencil className="mr-2 h-4 w-4" />
-                                      <span>Rename</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => forkSession(session.id)}>
-                                      <Copy className="mr-2 h-4 w-4" />
-                                      <span>Duplicate</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => deleteSession(session.id)}>
-                                      <Trash2 className="mr-2 h-4 w-4" />
-                                      <span>Delete</span>
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
+          </div>
+          <div className="p-2">
+            <Button onClick={newSession} className="w-full" variant="outline" size={isCollapsed ? "icon" : "default"}>
+              <Plus className="h-4 w-4" />
+              <span className={cn("ml-2", isCollapsed && "hidden")}>New Session</span>
+            </Button>
+          </div>
+          <ScrollArea className="flex-1 px-2">
+            {Object.entries(sessionGroups).map(([groupName, groupSessions]) => (groupSessions.length > 0 && (
+              <div key={groupName} className="py-2">
+                <h3 className={cn("text-xs font-semibold text-muted-foreground px-2 mb-2", isCollapsed && "text-center")}>{isCollapsed ? groupName.substring(0, 1) : groupName}</h3>
+                <div className="space-y-1">
+                  {groupSessions.map(session => (
+                    <Tooltip key={session.id} delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <div
+                          onClick={() => { if (renamingId !== session.id) loadSession(session.id); }}
+                          className={cn(
+                            "group flex items-center gap-3 rounded-md px-3 py-2 text-sm cursor-pointer transition-all hover:bg-accent hover:text-accent-foreground min-w-0",
+                            activeSessionId === session.id ? "bg-accent text-accent-foreground" : "text-muted-foreground",
+                            isCollapsed && "justify-center"
+                          )}
+                        >
+                          <MessageSquare className="h-4 w-4 shrink-0" />
+
+                          <div className={cn("flex items-center min-w-0 flex-1", isCollapsed && "hidden")}>
+                            {/* Text container with proper truncation */}
+                            <div className="min-w-0 flex-1">
+                              {renamingId === session.id ? (
+                                <input
+                                  type="text"
+                                  defaultValue={session.name}
+                                  className="w-full bg-transparent border border-primary rounded-md px-1 py-0 text-sm focus:outline-none"
+                                  autoFocus
+                                  onClick={(e) => e.stopPropagation()}
+                                  onBlur={(e) => handleRenameSubmit(session.id, e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                                />
+                              ) : (
+                                <span className="block truncate">
+                                  {session.name}
+                                </span>
+                              )}
                             </div>
-                            {/* --- MODIFICATION END --- */}
+
+                            {/* Menu button - always visible on hover */}
+                            <div className="ml-2 shrink-0 opacity-0 group-hover:opacity-100">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={e => e.stopPropagation()}>
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent onClick={e => e.stopPropagation()} align="end" className="w-40">
+                                  <DropdownMenuItem onClick={() => setRenamingId(session.id)}>
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    <span>Rename</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => forkSession(session.id)}>
+                                    <Copy className="mr-2 h-4 w-4" />
+                                    <span>Duplicate</span>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => deleteSession(session.id)}>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    <span>Delete</span>
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </div>
-                        </TooltipTrigger>
-                        {isCollapsed && (<TooltipContent side="right">{session.name}</TooltipContent>)}
-                      </Tooltip>
-                    ))}
-                  </div>
+                        </div>
+                      </TooltipTrigger>
+                      {isCollapsed && (<TooltipContent side="right">{session.name}</TooltipContent>)}
+                    </Tooltip>
+                  ))}
                 </div>
-              )))}
-           </ScrollArea>
-           <div className="mt-auto border-t p-2">
-             <Tooltip delayDuration={0}>
-               <TooltipTrigger asChild>
-                 <Button onClick={() => setIsCollapsed(!isCollapsed)} variant="ghost" className="w-full justify-start gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground">
-                   {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-                   <span className={cn("truncate", isCollapsed && "hidden")}>Collapse</span>
-                 </Button>
-               </TooltipTrigger>
-               {isCollapsed && (<TooltipContent side="right">Expand</TooltipContent>)}
-             </Tooltip>
-           </div>
+              </div>
+            )))}
+          </ScrollArea>
+          <div className="mt-auto border-t p-2">
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <Button onClick={() => setIsCollapsed(!isCollapsed)} variant="ghost" className="w-full justify-start gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground">
+                  {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                  <span className={cn("truncate", isCollapsed && "hidden")}>Collapse</span>
+                </Button>
+              </TooltipTrigger>
+              {isCollapsed && (<TooltipContent side="right">Expand</TooltipContent>)}
+            </Tooltip>
+          </div>
         </aside>
 
         <div className="flex flex-1 flex-col">
           <header className="flex h-14 items-center gap-4 border-b bg-background px-6 shrink-0">
-             <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="flex-1 justify-between max-w-xs">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1 rounded-md bg-zinc-700/50">
-                          <FolderKanban className="size-4 text-zinc-300"/>
-                      </div>
-                      <span className="font-semibold">My Startup Analysis</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="flex-1 justify-between max-w-xs">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1 rounded-md bg-zinc-700/50">
+                      <FolderKanban className="size-4 text-zinc-300" />
                     </div>
-                    <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                  <DropdownMenuLabel>Projects (Coming Soon)</DropdownMenuLabel>
-                  <DropdownMenuItem disabled>My Startup Analysis</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <span className="font-semibold">My Startup Analysis</span>
+                  </div>
+                  <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                <DropdownMenuLabel>Projects (Coming Soon)</DropdownMenuLabel>
+                <DropdownMenuItem disabled>My Startup Analysis</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <div className="ml-auto flex items-center gap-2">
-            <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <Button asChild variant="ghost" size="icon" className="h-8 w-8">
-                      <Link href="/browse">
-                        <LayoutGrid className="h-4 w-4" />
-                        <span className="sr-only">Browse Corpus</span>
-                      </Link>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Browse Corpus</TooltipContent>
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <Button asChild variant="ghost" size="icon" className="h-8 w-8">
+                    <Link href="/browse">
+                      <LayoutGrid className="h-4 w-4" />
+                      <span className="sr-only">Browse Corpus</span>
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">Browse Corpus</TooltipContent>
               </Tooltip>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" /><Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" /><span className="sr-only">Toggle theme</span></Button></DropdownMenuTrigger>
@@ -264,24 +262,24 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                 <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Account</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={handleGenerateReport} disabled={isGeneratingReport}>
-                      {isGeneratingReport ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <FileText className="mr-2 h-4 w-4" />
-                      )}
-                      <span>{isGeneratingReport ? 'Generating...' : 'Generate Report'}</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExport}>
-                      <Download className="mr-2 h-4 w-4" />
-                      <span>Export Sessions</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem disabled><Settings className="mr-2 h-4 w-4" /><span>Settings</span></DropdownMenuItem>
-                    <DropdownMenuItem disabled><LifeBuoy className="mr-2 h-4 w-4" /><span>Support</span></DropdownMenuItem>
-                  </DropdownMenuContent>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Account</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={handleGenerateReport} disabled={isGeneratingReport}>
+                    {isGeneratingReport ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileText className="mr-2 h-4 w-4" />
+                    )}
+                    <span>{isGeneratingReport ? 'Generating...' : 'Generate Report'}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExport}>
+                    <Download className="mr-2 h-4 w-4" />
+                    <span>Export Sessions</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled><Settings className="mr-2 h-4 w-4" /><span>Settings</span></DropdownMenuItem>
+                  <DropdownMenuItem disabled><LifeBuoy className="mr-2 h-4 w-4" /><span>Support</span></DropdownMenuItem>
+                </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </header>

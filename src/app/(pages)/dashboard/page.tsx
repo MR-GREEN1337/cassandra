@@ -38,8 +38,10 @@ function CanvasController() {
   }, [nodes, fitView]);
 
   useEffect(() => {
-    if (nodes.length > 0) {
-      const firstNode = nodes.find(n => n.data.parentId === undefined);
+    // --- MODIFICATION: Only focus on the first node if it's the *only* node ---
+    // This prevents re-focusing when loading a session with multiple nodes.
+    if (nodes.length === 1) {
+      const firstNode = nodes[0]; // Since there's only one, it must be the first
       if (firstNode) {
         fitView({
           nodes: [{ id: firstNode.id }],

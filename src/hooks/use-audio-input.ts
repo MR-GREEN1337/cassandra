@@ -9,7 +9,10 @@ interface CustomWindow extends Window {
   webkitSpeechRecognition: any;
 }
 
-export function useAudioInput(onTranscript: (transcript: string) => void) {
+export function useAudioInput(
+  onFinalTranscript: (transcript: string) => void,
+  onInterimTranscript: (transcript: string) => void
+) {
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
@@ -29,14 +32,20 @@ export function useAudioInput(onTranscript: (transcript: string) => void) {
     recognition.lang = 'en-US';
 
     recognition.onresult = (event: any) => {
+      let interimTranscript = '';
       let finalTranscript = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
           finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
         }
       }
       if (finalTranscript) {
-        onTranscript(finalTranscript);
+        onFinalTranscript(finalTranscript);
+      }
+      if (interimTranscript) {
+        onInterimTranscript(interimTranscript);
       }
     };
     
@@ -46,15 +55,20 @@ export function useAudioInput(onTranscript: (transcript: string) => void) {
     };
     
     recognition.onend = () => {
-        setIsListening(false);
+        if (recognitionRef.current) {
+          setIsListening(false);
+        }
     };
 
     recognitionRef.current = recognition;
 
     return () => {
-      recognitionRef.current?.stop();
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
     };
-  }, [onTranscript]);
+  }, [onFinalTranscript, onInterimTranscript]);
 
   const toggleListening = () => {
     if (!recognitionRef.current) return;
